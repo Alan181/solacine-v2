@@ -30,10 +30,13 @@ import '../features/support/presentation/support_tickets_screen.dart';
 import '../features/inbox/presentation/inbox_screen.dart';
 import '../features/devices/presentation/devices_screen.dart';
 import '../features/watch/presentation/watch_screen.dart';
-import '../features/wallet/coins_recharge_screen.dart';
+
+// --- IMPOR WALLET YANG SUDAH DISESUAIKAN JALURNYA ---
+import '../features/wallet/presentation/coins_recharge_screen.dart';
 import '../features/wallet/presentation/vip_membership_screen.dart';
 import '../features/wallet/presentation/purchase_history_screen.dart';
 import '../features/wallet/presentation/payment_return_screen.dart';
+
 import '../shared/data/package_info_provider.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -46,7 +49,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final skipVerify = ref.watch(skipEmailVerificationProvider);
 
   final prevConfig = _previousRouter?.routerDelegate.currentConfiguration;
-  // Diubah: Jika belum ada rute tersimpan, arahkan default ke '/reels'
   final initialLoc = (prevConfig != null && prevConfig.isNotEmpty) 
       ? prevConfig.last.matchedLocation 
       : '/reels';
@@ -387,7 +389,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/verify-email';
       }
 
-      // Diubah: Ketika pengguna sudah sign-in atau baru membuka halaman root/login, arahkan ke '/reels'
       if (signedIn && (loc == '/' || isAuthRoute)) {
         return '/reels';
       }
