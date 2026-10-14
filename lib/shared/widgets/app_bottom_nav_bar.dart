@@ -9,9 +9,11 @@ class AppBottomNavBar extends StatefulWidget {
   const AppBottomNavBar({
     super.key,
     required this.currentIndex,
+    this.onTabReselected,
   });
 
   final int currentIndex;
+  final ValueChanged<int>? onTabReselected;
 
   @override
   State<AppBottomNavBar> createState() => _AppBottomNavBarState();
@@ -47,6 +49,7 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
         onDestinationSelected: (index) {
           if (index == widget.currentIndex) {
             setState(() => _tapKey++);
+            widget.onTabReselected?.call(index);
             return;
           }
           if (index == 0) {
