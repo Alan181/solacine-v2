@@ -100,6 +100,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   int _vastEpisodePlayCounter = 0;
   Timer? _autoHideControlsTimer;
 
+  int _episodeChangeCounter = 0; // Counter untuk frekuensi iklan per 5 episode
+
   var _episodesPerPage = 30;
   var _episodesTotal = 0;
   var _episodesPages = 0;
@@ -547,6 +549,70 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         if (mounted) setState(() {});
       }
     }
+  }
+
+  // --- FUNGSI TERSENDIRI UNTUK MENGELOLA IKLAN PER 5 EPISODE ---
+  Future<void> _handleEpisodeChangeWithAds(int targetEpisodeNumber) async {
+    if (widget.reelsPreview) return;
+
+    final session = ref.read(authSessionProvider).valueOrNull;
+    final expiresRaw = (session?.user?['membership_expires_at'] as String?)?.trim();
+    final expiresAt = (expiresRaw == null || expiresRaw.isEmpty) ? null : DateTime.tryParse(expiresRaw)?.toLocal();
+    final isVipUser = expiresAt != null && expiresAt.isAfter(DateTime.now());
+
+    // Hitung pergantian episode, tampilkan iklan setiap kelipatan 5 episode untuk non-VIP
+    _episodeChangeCounter++;
+    if (!isVipUser && _episodeChangeCounter >= 5) {
+      _episodeChangeCounter = 0;
+
+      try {
+        final cfg = ref.read(adsConfigProvider);
+        final adsSvc = ref.read(adsServiceProvider);
+
+        if (cfg != null && adsSvc.adsEnabled(cfg)) {
+          try {
+            await _video?.pause();
+          } catch (_) {}
+
+          if (mounted) setState(() => _fullScreenAdOpen = true);
+
+          await adsSvc.ensureInitialized(cfg);
+          await adsSvc.showInterstitial();
+
+          if (mounted) {
+            setState(() => _fullScreenAdOpen = false);
+            
+            // Auto-play video kembali setelah iklan selesai
+            try {
+              if (_video != null && _video!.value.isInitialized) {
+                await _video!.play();
+                _scheduleAutoHideControls();
+              }
+            } catch (_) {}
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _fullScreenAdOpen = false);
+        }
+      }
+    }
+
+    final idx = targetEpisodeNumber - 1;
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(idx);
+    }
+    if (mounted) {
+      setState(() {
+        _index = idx;
+      });
+    }
+
+    await _ensureEpisodeLoaded(targetEpisodeNumber);
+    await _startEpisodeNumber(targetEpisodeNumber);
+    
+    Future.microtask(() => _ensureEpisodeLoaded(targetEpisodeNumber + 2));
+    Future.microtask(() => _ensureEpisodeLoaded(targetEpisodeNumber - 2));
   }
 
   void _handleVastAdFinished({required bool completed}) {
@@ -1773,11 +1839,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                   _index = i;
                 });
                 final epNum = _episodeNumberForPageIndex(i);
-                await _ensureEpisodeLoaded(epNum);
-                await _startEpisodeNumber(epNum);
-                Future.microtask(() => _ensureEpisodeLoaded(epNum + 1));
-                Future.microtask(() => _ensureEpisodeLoaded(epNum + 2));
-                Future.microtask(() => _triggerPreloadNextEpisodes(epNum));
+                await _handleEpisodeChangeWithAds(epNum);
               },
               itemBuilder: (context, i) {
                 final epNum = _episodeNumberForPageIndex(i);
