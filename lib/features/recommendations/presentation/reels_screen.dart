@@ -52,7 +52,6 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> with WidgetsBindingOb
   Future<void> _maybeShowInterstitialOnReelExit() async {
     if (!mounted) return;
     _reelSwipeCount++;
-    // Only trigger interstitial ad once every 6 reel swipes to maintain smooth browsing
     if (_reelSwipeCount % 6 != 0) return;
     final isVip = ref.read(isVipProvider);
     if (isVip) return;
@@ -91,6 +90,16 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> with WidgetsBindingOb
         ReelsPreloadManager.prefetch(ref: ref, slug: slug, episode: ep);
       }
     }
+  }
+
+  void _handleReelsTabReselected() {
+    ref.invalidate(recommendationsFeedProvider);
+    if (_controller.hasClients) {
+      _controller.jumpToPage(0);
+    }
+    setState(() {
+      _index = 0;
+    });
   }
 
   @override
@@ -208,7 +217,14 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> with WidgetsBindingOb
       child: Scaffold(
         backgroundColor: Colors.black,
         body: content,
-        bottomNavigationBar: const AppBottomNavBar(currentIndex: 1),
+        bottomNavigationBar: AppBottomNavBar(
+          currentIndex: 1,
+          onTabReselected: (index) {
+            if (index == 1) {
+              _handleReelsTabReselected();
+            }
+          },
+        ),
       ),
     );
   }
