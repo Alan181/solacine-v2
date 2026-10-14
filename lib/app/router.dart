@@ -30,7 +30,7 @@ import '../features/support/presentation/support_tickets_screen.dart';
 import '../features/inbox/presentation/inbox_screen.dart';
 import '../features/devices/presentation/devices_screen.dart';
 import '../features/watch/presentation/watch_screen.dart';
-import '../features/wallet/presentation/coins_recharge_screen.dart';
+import '../features/wallet/coins_recharge_screen.dart';
 import '../features/wallet/presentation/vip_membership_screen.dart';
 import '../features/wallet/presentation/purchase_history_screen.dart';
 import '../features/wallet/presentation/payment_return_screen.dart';
@@ -46,7 +46,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final skipVerify = ref.watch(skipEmailVerificationProvider);
 
   final prevConfig = _previousRouter?.routerDelegate.currentConfiguration;
-  final initialLoc = (prevConfig != null && prevConfig.isNotEmpty) ? prevConfig.last.matchedLocation : '/';
+  // Diubah: Jika belum ada rute tersimpan, arahkan default ke '/reels'
+  final initialLoc = (prevConfig != null && prevConfig.isNotEmpty) 
+      ? prevConfig.last.matchedLocation 
+      : '/reels';
 
   final router = GoRouter(
     navigatorKey: rootNavigatorKey,
@@ -291,7 +294,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           child: GenresScreen(),
         ),
       ),
-
       GoRoute(
         path: '/search',
         pageBuilder: (context, state) => const NoTransitionPage(
@@ -325,8 +327,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isUpdateRoute = loc == '/update';
       final isTwoFactorRoute = loc == '/two-factor';
       final isPaymentReturnRoute = loc == '/payment-return';
-      final isLegalRoute = loc == '/legal'; // Guest-accessible legal screens (Privacy Policy / Terms)
-      final isPayRoute = loc == '/pay';     // Guest-accessible payment gateway checkout
+      final isLegalRoute = loc == '/legal';
+      final isPayRoute = loc == '/pay';
 
       if (bootstrap.isLoading) {
         return (loc == '/' || isUpdateRoute || isLegalRoute || isPayRoute) ? null : '/';
@@ -372,8 +374,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final signedIn = auth.valueOrNull != null;
 
       if (!signedIn) {
-        // Guests can open Privacy / Terms screens AND the in-app payment
-        // gateway from anywhere — even before they create an account.
         if (isAuthRoute || isTwoFactorRoute || isLegalRoute || isPayRoute) return null;
         return '/login';
       }
@@ -387,8 +387,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/verify-email';
       }
 
+      // Diubah: Ketika pengguna sudah sign-in atau baru membuka halaman root/login, arahkan ke '/reels'
       if (signedIn && (loc == '/' || isAuthRoute)) {
-        return '/home';
+        return '/reels';
       }
 
       return null;
