@@ -66,7 +66,7 @@ class DrameReelApp extends ConsumerWidget {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
     return MaterialApp.router(
-      title: 'DrameReel',
+      title: 'Solacine',
       debugShowCheckedModeBanner: false,
       theme: lightTheme,
       darkTheme: darkTheme,
