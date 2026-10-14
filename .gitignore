@@ -1,0 +1,91 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+Thumbs.db
+
+# IntelliJ / IDE related
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/
+
+# Flutter / Dart / Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+.packages
+.pub-cache/
+build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android: build artifacts, caches, generated local config
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/.gradle/
+/android/local.properties
+/android/key.properties
+/android/app/google-services.json
+/build/
+/android/app/build/
+/app/build/
+/build/app/
+/build/jni/
+/build/.cxx/
+/build/app/intermediates/
+/build/app/outputs/
+/build/app/reports/
+/build/app/deeplink.json
+/build/app/gmpAppId/
+/android/build/
+/android/app/release/
+/android/.gradle/
+
+# iOS: build, caches, pods
+/ios/Pods/
+/ios/.symlinks/
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
+/ios/Runner.xcworkspace/xcuserdata/
+/ios/Runner.xcodeproj/xcuserdata/
+/ios/build/
+*.xcuserstate
+DerivedData/
+
+# Environment & secrets
+.env
+.env.*
+*.keystore
+*.jks
+*.p12
+*.pem
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+exportOptions.plist
+
+# Uploaded media / temp assets (if any)
+/assets/temp/
+/assets/uploads/
