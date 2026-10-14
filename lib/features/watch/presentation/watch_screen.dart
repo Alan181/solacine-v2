@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
+import 'package:screen_security/screen_security.dart'; // <-- 1. Import screen_security
 import 'package:dramereel_mobile/shared/widgets/app_cached_image.dart';
 import '../../../app/i18n.dart';
 import '../../../shared/constants.dart';
@@ -52,6 +53,8 @@ class WatchScreen extends ConsumerStatefulWidget {
 }
 
 class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
+  final _screenSecurity = ScreenSecurity(); // <-- 2. Buat instance ScreenSecurity
+
   var _loading = true;
   Object? _error;
   WatchDataDto? _data;
@@ -108,6 +111,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   @override
   void initState() {
     super.initState();
+    
+    // <-- 3. Aktifkan proteksi screen security saat halaman dibuka
+    _screenSecurity.enable();
+
     WidgetsBinding.instance.addObserver(this);
     if (widget.reelsPreview) {
       _episodesPerPage = 1;
@@ -155,6 +162,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
   @override
   void dispose() {
+    // <-- 4. Nonaktifkan proteksi saat keluar dari halaman watch
+    _screenSecurity.disable();
+
     WidgetsBinding.instance.removeObserver(this);
     _disposed = true;
     _videoOpId++;
@@ -348,7 +358,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         return Stack(
           fit: StackFit.expand,
           children: [
-            // iOS Frosted Glass Background Blur over entire player
             Opacity(
               opacity: animVal,
               child: ClipRect(
@@ -363,7 +372,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                 ),
               ),
             ),
-            // Popup card with smooth scale and slide
             Opacity(
               opacity: animVal,
               child: Transform.translate(
@@ -519,12 +527,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                 await adsSvc.showInterstitial().timeout(const Duration(milliseconds: 1400));
               } catch (_) {}
             }).timeout(const Duration(milliseconds: 1500));
-          } catch (_) {
-            // ignore: ad-block, no-fill, missing-adapter, network, timeout, etc.
-          }
-        } catch (_) {
-          // double catch just in case
-        }
+          } catch (_) {}
+        } catch (_) {}
       }
 
       exitTimeoutTimer.cancel();
@@ -627,7 +631,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           });
           completed = await completer.future.timeout(const Duration(seconds: 35), onTimeout: () => true);
         } else {
-          completed = true; // Fallback if no-fill
+          completed = true;
         }
       } catch (_) {
         completed = true;
@@ -1870,7 +1874,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                       _video?.pause();
                     } catch (_) {}
                     final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&episode=$epN&from=reels';
-                    // Close Reels and switch underlying shell branch to /home so exiting exits to Home
                     context.go('/home');
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (context.mounted) {
