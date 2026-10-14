@@ -1,13 +1,10 @@
-name: Build Flutter Release
+name: Build APK Release
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
-  build:
+  build-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -27,9 +24,9 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/*.gradle.kts') }}
+          key: ${{ runner.os }}-gradle-apk-${{ hashFiles('**/*.gradle*', '**/*.gradle.kts') }}
           restore-keys: |
-            ${{ runner.os }}-gradle-
+            ${{ runner.os }}-gradle-apk-
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -65,17 +62,10 @@ jobs:
           storeFile=keystore.jks
           EOT
 
-      - name: Build AAB
-        run: flutter build appbundle --release --no-tree-shake-icons
-
       - name: Build APK
-        run: flutter build apk --release --no-tree-shake-icons
-
-      - name: Upload App Bundle Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-aab
-          path: build/app/outputs/bundle/release/app-release.aab
+        run: |
+          flutter build apk --release --no-tree-shake-icons \
+            -Dorg.gradle.jvmargs="-Xmx3g -XX:+HeapDumpOnOutOfMemoryError"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
