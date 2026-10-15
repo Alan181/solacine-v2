@@ -81,7 +81,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        context.go('/home');
+        context.go('/reels');
       },
       child: Scaffold(
         backgroundColor: const Color(0xff050505),
