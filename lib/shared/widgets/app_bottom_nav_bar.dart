@@ -53,11 +53,11 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
             return;
           }
           if (index == 0) {
-            context.go('/reels'); // Index 0 sekarang diarahkan ke Reels
+            context.go('/home');
             return;
           }
           if (index == 1) {
-            context.go('/home'); // Index 1 sekarang diarahkan ke Home
+            context.go('/reels');
             return;
           }
           if (index == 2) {
@@ -71,33 +71,33 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
         destinations: [
           NavigationDestination(
             icon: Image.asset(
-              'assets/images/ms_app_tabbar_icon_recommend.png',
-              width: 28,
-              height: 28,
-              filterQuality: FilterQuality.low,
-            ),
-            selectedIcon: WaterFillNavIcon(
-              key: ValueKey('nav_reels_${widget.currentIndex == 0 ? _tapKey : 0}'),
-              unselectedAssetPath: 'assets/images/ms_app_tabbar_icon_recommend.png',
-              selectedAssetPath: 'assets/images/ms_app_tabbar_icon_sel_recommend.png',
-              size: 28,
-            ),
-            label: t.t('nav_reels'), // Tab pertama adalah Reels (index 0)
-          ),
-          NavigationDestination(
-            icon: Image.asset(
               'assets/images/ms_app_tabbar_icon_category.png',
               width: 28,
               height: 28,
               filterQuality: FilterQuality.low,
             ),
             selectedIcon: WaterFillNavIcon(
-              key: ValueKey('nav_home_${widget.currentIndex == 1 ? _tapKey : 0}'),
+              key: ValueKey('nav_home_${widget.currentIndex == 0 ? _tapKey : 0}'),
               unselectedAssetPath: 'assets/images/ms_app_tabbar_icon_category.png',
               selectedAssetPath: 'assets/images/ms_app_tabbar_icon_sel_category.png',
               size: 28,
             ),
-            label: t.t('nav_home'), // Tab kedua adalah Home (index 1)
+            label: t.t('nav_home'),
+          ),
+          NavigationDestination(
+            icon: Image.asset(
+              'assets/images/ms_app_tabbar_icon_recommend.png',
+              width: 28,
+              height: 28,
+              filterQuality: FilterQuality.low,
+            ),
+            selectedIcon: WaterFillNavIcon(
+              key: ValueKey('nav_reels_${widget.currentIndex == 1 ? _tapKey : 0}'),
+              unselectedAssetPath: 'assets/images/ms_app_tabbar_icon_recommend.png',
+              selectedAssetPath: 'assets/images/ms_app_tabbar_icon_sel_recommend.png',
+              size: 28,
+            ),
+            label: t.t('nav_reels'),
           ),
           NavigationDestination(
             icon: Image.asset(
