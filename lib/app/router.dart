@@ -92,9 +92,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/reels',
+                path: '/home',
                 pageBuilder: (context, state) => const NoTransitionPage(
-                  child: ReelsScreen(),
+                  child: HomeScreen(),
                 ),
               ),
             ],
@@ -102,9 +102,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/home',
+                path: '/reels',
                 pageBuilder: (context, state) => const NoTransitionPage(
-                  child: HomeScreen(),
+                  child: ReelsScreen(),
                 ),
               ),
             ],
