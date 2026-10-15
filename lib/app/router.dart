@@ -389,6 +389,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/verify-email';
       }
 
+      // Diperbarui agar saat baru login atau masuk ke root/home, langsung diarahkan ke reels
       if (signedIn && (loc == '/' || isAuthRoute || loc == '/home')) {
         return '/reels';
       }
