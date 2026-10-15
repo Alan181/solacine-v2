@@ -83,7 +83,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           context.pop();
           return;
         }
-        context.go('/home');
+        context.go('/reels'); // Diubah dari /home ke /reels
       },
       child: Scaffold(
         backgroundColor: const Color(0xff050505),
