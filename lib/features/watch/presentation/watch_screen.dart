@@ -562,7 +562,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
     // Hitung pergantian episode, tampilkan iklan setiap kelipatan 5 episode untuk non-VIP
     _episodeChangeCounter++;
-    if (!isVipUser && _episodeChangeCounter >= 5) {
+    if (!isVipUser && _episodeChangeCounter >= 4) {
       _episodeChangeCounter = 0;
 
       try {
