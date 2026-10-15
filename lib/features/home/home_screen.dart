@@ -67,100 +67,92 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final appName = (bootstrap?.publicSettings['app_name'] as String?) ?? t.t('app_name');
     final topPadding = MediaQuery.paddingOf(context).top;
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        // Kembali ke halaman Reels saat tombol back fisik ditekan di Home
-        context.go('/reels');
-      },
-      child: Scaffold(
-        backgroundColor: const Color(0xff050505),
-        body: Stack(
-          children: [
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 0,
-              height: 280,
-              child: IgnorePointer(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Opacity(
-                      opacity: 0.25,
-                      child: Image.asset(
-                        'assets/images/icon_subscribe_iaa_bg.png',
-                        fit: BoxFit.cover,
-                        alignment: Alignment.topCenter,
-                        filterQuality: FilterQuality.low,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Column(
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(16, topPadding + 6, 16, 10),
-                  child: _ExploreTopBar(appName: appName),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                  child: Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: TabBar(
-                      controller: _tabController,
-                      isScrollable: true,
-                      tabAlignment: TabAlignment.start,
-                      dividerColor: Colors.transparent,
-                      indicatorColor: const Color(0xffef233c),
-                      indicatorSize: TabBarIndicatorSize.label,
-                      labelColor: Colors.white,
-                      unselectedLabelColor: Colors.white.withValues(alpha: 0.55),
-                      labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
-                      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
-                      tabs: [
-                        Tab(text: t.t('discover')),
-                        Tab(text: t.t('new_releases')),
-                        Tab(text: t.t('categories')),
-                        Tab(text: t.t('ranking')),
-                        Tab(text: t.t('dubbed')),
-                      ],
+    return Scaffold(
+      backgroundColor: const Color(0xff050505),
+      body: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 280,
+            child: IgnorePointer(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Opacity(
+                    opacity: 0.25,
+                    child: Image.asset(
+                      'assets/images/icon_subscribe_iaa_bg.png',
+                      fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
+                      filterQuality: FilterQuality.low,
                     ),
                   ),
-                ),
-                Expanded(
-                  child: TabBarView(
+                ],
+              ),
+            ),
+          ),
+          Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(16, topPadding + 6, 16, 10),
+                child: _ExploreTopBar(appName: appName),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: TabBar(
                     controller: _tabController,
-                    children: const [
-                      _DiscoverTab(),
-                      _NewReleasesTab(),
-                      _CategoriesTab(),
-                      _RankingTab(),
-                      _DubbedTab(),
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
+                    dividerColor: Colors.transparent,
+                    indicatorColor: const Color(0xffef233c),
+                    indicatorSize: TabBarIndicatorSize.label,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: Colors.white.withValues(alpha: 0.55),
+                    labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+                    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                    tabs: [
+                      Tab(text: t.t('discover')),
+                      Tab(text: t.t('new_releases')),
+                      Tab(text: t.t('categories')),
+                      Tab(text: t.t('ranking')),
+                      Tab(text: t.t('dubbed')),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ],
-        ),
-        bottomNavigationBar: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              color: const Color(0xff050505),
-              alignment: Alignment.center,
-              child: const SafeArea(
-                top: false,
-                child: AdBanner(),
               ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: const [
+                    _DiscoverTab(),
+                    _NewReleasesTab(),
+                    _CategoriesTab(),
+                    _RankingTab(),
+                    _DubbedTab(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            color: const Color(0xff050505),
+            alignment: Alignment.center,
+            child: const SafeArea(
+              top: false,
+              child: AdBanner(),
             ),
-            const AppBottomNavBar(currentIndex: 0),
-          ],
-        ),
+          ),
+          const AppBottomNavBar(currentIndex: 1), // Disesuaikan karena Home sekarang di index 1
+        ],
       ),
     );
   }
