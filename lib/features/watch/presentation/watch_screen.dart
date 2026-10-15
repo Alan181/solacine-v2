@@ -100,7 +100,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   int _vastEpisodePlayCounter = 0;
   Timer? _autoHideControlsTimer;
 
-  int _episodeChangeCounter = 0; // Counter untuk frekuensi iklan per 5 episode
+  int _episodeChangeCounter = 0; // Counter untuk frekuensi iklan per 4 episode
 
   var _episodesPerPage = 30;
   var _episodesTotal = 0;
@@ -445,14 +445,14 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     } catch (_) {}
     final router = GoRouter.of(context);
     if (widget.fromReels) {
-      router.go('/home');
+      router.go('/reels');
       return;
     }
     if (router.canPop()) {
       router.pop();
       return;
     }
-    router.go('/home');
+    router.go('/reels');
   }
 
   Future<void> _showExitInterstitialAndLeave({required bool isVipUser}) async {
@@ -551,7 +551,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     }
   }
 
-  // --- FUNGSI TERSENDIRI UNTUK MENGELOLA IKLAN PER 5 EPISODE ---
+  // --- FUNGSI TERSENDIRI UNTUK MENGELOLA IKLAN PER 4 EPISODE ---
   Future<void> _handleEpisodeChangeWithAds(int targetEpisodeNumber) async {
     if (widget.reelsPreview) return;
 
@@ -560,7 +560,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     final expiresAt = (expiresRaw == null || expiresRaw.isEmpty) ? null : DateTime.tryParse(expiresRaw)?.toLocal();
     final isVipUser = expiresAt != null && expiresAt.isAfter(DateTime.now());
 
-    // Hitung pergantian episode, tampilkan iklan setiap kelipatan 5 episode untuk non-VIP
+    // Hitung pergantian episode, tampilkan iklan setiap kelipatan 4 episode untuk non-VIP
     _episodeChangeCounter++;
     if (!isVipUser && _episodeChangeCounter >= 4) {
       _episodeChangeCounter = 0;
@@ -1936,7 +1936,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                       _video?.pause();
                     } catch (_) {}
                     final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&episode=$epN&from=reels';
-                    context.go('/home');
+                    context.go('/reels');
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (context.mounted) {
                         context.push(target);
