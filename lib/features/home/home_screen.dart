@@ -151,7 +151,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               child: AdBanner(),
             ),
           ),
-          const AppBottomNavBar(currentIndex: 1), // Disesuaikan karena Home sekarang di index 1
+          const AppBottomNavBar(currentIndex: 0),
         ],
       ),
     );
