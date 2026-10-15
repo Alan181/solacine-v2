@@ -212,7 +212,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> with WidgetsBindingOb
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        context.go('/home');
+        context.go('/reels');
       },
       child: Scaffold(
         backgroundColor: Colors.black,
