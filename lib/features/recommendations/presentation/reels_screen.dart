@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dramereel_mobile/shared/widgets/active_shell_branch_scope.dart';
@@ -25,6 +26,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> with WidgetsBindingOb
   var _index = 0;
   var _prefetchedIndex = -1;
   var _isAppForeground = true;
+  DateTime? _lastPressedAt;
 
   @override
   void initState() {
@@ -212,7 +214,22 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> with WidgetsBindingOb
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        context.go('/reels');
+
+        final now = DateTime.now();
+        const maxDuration = Duration(seconds: 2);
+
+        if (_lastPressedAt == null || now.difference(_lastPressedAt!) > maxDuration) {
+          _lastPressedAt = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tekan sekali lagi untuk keluar'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+
+        SystemNavigator.pop();
       },
       child: Scaffold(
         backgroundColor: Colors.black,
