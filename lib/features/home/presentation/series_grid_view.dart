@@ -298,8 +298,7 @@ class _SeriesGridViewState extends ConsumerState<SeriesGridView> with AutomaticK
                 isDubbed: item.isDubbed,
                 views: item.views,
                 onTap: () {
-                  final poster = _normalizeImageUrl(item.posterUrl, baseUrl);
-                  context.push('/watch/${item.slug}?title=${Uri.encodeComponent(item.title)}&poster=${Uri.encodeComponent(poster)}');
+                  context.push('/watch/${item.slug}');
                 },
               );
             },
