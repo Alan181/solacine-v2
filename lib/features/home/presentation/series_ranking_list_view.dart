@@ -229,8 +229,7 @@ class _SeriesRankingListViewState extends ConsumerState<SeriesRankingListView> w
             isPremium: item.isPremium,
             isDubbed: item.isDubbed,
             onTap: () {
-              final poster = _normalizeImageUrl(item.posterUrl, baseUrl);
-              context.push('/watch/${item.slug}?title=${Uri.encodeComponent(item.title)}&poster=${Uri.encodeComponent(poster)}');
+              context.push('/watch/${item.slug}');
             },
           );
         },
