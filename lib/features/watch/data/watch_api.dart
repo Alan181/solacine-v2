@@ -21,6 +21,7 @@ class WatchSeriesDto {
     required this.likesCount,
     required this.isLiked,
     required this.isFavorited,
+    required this.lastWatchedEpisodeNumber,
   });
 
   final int id;
@@ -39,6 +40,7 @@ class WatchSeriesDto {
   final int likesCount;
   final bool isLiked;
   final bool isFavorited;
+  final int lastWatchedEpisodeNumber;
 
   factory WatchSeriesDto.fromJson(Map<String, dynamic> json) {
     final rawGenres = json['genres'];
@@ -60,6 +62,7 @@ class WatchSeriesDto {
       likesCount: (json['likes_count'] as num?)?.toInt() ?? 0,
       isLiked: json['is_liked'] == true,
       isFavorited: json['is_favorited'] == true,
+      lastWatchedEpisodeNumber: (json['last_watched_episode_number'] as num?)?.toInt() ?? 1,
     );
   }
 }
