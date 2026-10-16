@@ -262,10 +262,7 @@ class _SeriesMoreSheetState extends ConsumerState<_SeriesMoreSheet> {
                                   imageUrl: item.posterUrl,
                                   isPremium: item.isPremium,
                                   onTap: () {
-                                    final p = item.posterUrl.isNotEmpty
-                                        ? '&poster=${Uri.encodeComponent(item.posterUrl)}'
-                                        : '';
-                                    context.push('/watch/${item.slug}?title=${Uri.encodeComponent(item.title)}$p');
+                                    context.push('/watch/${item.slug}');
                                   },
                                 );
                               },
