@@ -1,10 +1,10 @@
 name: Build Flutter Release
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+  # push:
+  #   branches:
+  #     - main
 
 jobs:
   build:
@@ -12,7 +12,7 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      # --- TAMBAHKAN LANGKAH INI UNTUK MENCEGAH DISK PENUH ---
+      # --- LANGKAH UNTUK MENCEGAH DISK PENUH ---
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
         with:
