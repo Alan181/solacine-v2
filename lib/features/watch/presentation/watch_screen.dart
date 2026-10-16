@@ -762,7 +762,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
               initialEpisode <= 1 ||
               cached.episodes.any((e) => e.episodeNumber == initialEpisode));
       
-      // Mengirim flag reels_preview ke Dio Interceptor
       final data = canUseCache
           ? cached
           : await ref.read(watchApiProvider).show(
@@ -1966,11 +1965,11 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                   onWatchNow: () {
                     final slug = series.slug.trim();
                     if (slug.isEmpty) return;
-                    final epN = widget.episodeNumber ?? epNum;
                     try {
                       _video?.pause();
                     } catch (_) {}
-                    final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&episode=$epN&from=reels';
+                    // PERBAIKAN: Hapus parameter &episode=... agar backend otomatis melanjutkan ke episode terakhir
+                    final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&from=reels';
                     context.go('/reels');
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (context.mounted) {
