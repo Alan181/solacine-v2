@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import '../../watch/data/watch_api.dart';
@@ -47,6 +48,9 @@ class ReelsPreloadManager {
               slug: cleanSlug,
               episodeNumber: episode,
               episodesPerPage: 1,
+              options: Options(
+                extra: {'reels_preview': true}, // <--- Pengaman agar prefetch tidak masuk history database
+              ),
             );
         _dataCache[cleanSlug] = data;
       }
