@@ -549,7 +549,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     }
   }
 
-  // --- FUNGSI MENGELOLA IKLAN PER KELIPATAN 3 EPISODE ---
+  // --- FUNGSI MENGELOLA IKLAN & LAPOR KE BACKEND SAAT SWIPE EPISODE ---
   Future<void> _handleEpisodeChangeWithAds(int targetEpisodeNumber) async {
     if (widget.reelsPreview) return;
 
@@ -577,7 +577,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           if (mounted) {
             setState(() => _fullScreenAdOpen = false);
             
-            // Auto-play video kembali setelah iklan selesai
             try {
               if (_video != null && _video!.value.isInitialized) {
                 await _video!.play();
@@ -594,7 +593,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     }
 
     final idx = targetEpisodeNumber - 1;
-    if (_pageController.hasClients) {
+    if (_pageController.hasClients && (_pageController.page?.round() ?? _index) != idx) {
       _pageController.jumpToPage(idx);
     }
     if (mounted) {
@@ -602,6 +601,17 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         _index = idx;
       });
     }
+
+    // --- PANGGIL API AGAR BACKEND MENYIMPAN RIWAYAT TONTONAN TERBARU ---
+    try {
+      final freshData = await ref.read(watchApiProvider).show(
+            slug: widget.slug,
+            episodeNumber: targetEpisodeNumber,
+          );
+      for (final e in freshData.episodes) {
+        _episodesByNumber[e.episodeNumber] = e;
+      }
+    } catch (_) {}
 
     await _ensureEpisodeLoaded(targetEpisodeNumber);
     await _startEpisodeNumber(targetEpisodeNumber);
@@ -778,7 +788,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         ..clear()
         ..addEntries(data.episodes.map((e) => MapEntry(e.episodeNumber, e)));
 
-      // --- LOGIKA PENENTUAN ACTIVE NUM YANG AMAN DAN BERURUTAN ---
       final forced = (widget.episodeNumber != null && (widget.episodeNumber ?? 0) > 0) ? widget.episodeNumber : null;
       final lastWatchedFromApi = data.series.lastWatchedEpisodeNumber;
 
@@ -796,7 +805,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       }
 
       final initial = widget.reelsPreview ? 0 : (_episodesTotal > 0 ? (activeNum - 1).clamp(0, _episodesTotal - 1) : 0);
-      // -----------------------------------------------------------
 
       final old = _pageController;
       final next = PageController(initialPage: initial);
@@ -1139,10 +1147,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         }
         await c.setPlaybackSpeed(_playbackSpeed);
         
-        // <-- DIUBAH: Set looping ke false agar tidak mengulang video yang sama
         await c.setLooping(false);
 
-        // <-- DITAMBAHKAN: Listener untuk mendeteksi video selesai dan lanjut ke episode berikutnya (dengan pengaman c?.value)
         c.addListener(() {
           if (!mounted || _disposed || opId != _videoOpId) return;
           final value = c?.value;
