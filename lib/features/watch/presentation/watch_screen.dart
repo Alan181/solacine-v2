@@ -100,8 +100,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   int _vastEpisodePlayCounter = 0;
   Timer? _autoHideControlsTimer;
 
-  int _episodeChangeCounter = 0; // Counter untuk frekuensi iklan per 4 episode
-
   var _episodesPerPage = 30;
   var _episodesTotal = 0;
   var _episodesPages = 0;
@@ -551,7 +549,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     }
   }
 
-  // --- FUNGSI TERSENDIRI UNTUK MENGELOLA IKLAN PER 4 EPISODE ---
+  // --- FUNGSI MENGELOLA IKLAN PER KELIPATAN 3 EPISODE ---
   Future<void> _handleEpisodeChangeWithAds(int targetEpisodeNumber) async {
     if (widget.reelsPreview) return;
 
@@ -560,11 +558,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     final expiresAt = (expiresRaw == null || expiresRaw.isEmpty) ? null : DateTime.tryParse(expiresRaw)?.toLocal();
     final isVipUser = expiresAt != null && expiresAt.isAfter(DateTime.now());
 
-    // Hitung pergantian episode, tampilkan iklan setiap kelipatan 4 episode untuk non-VIP
-    _episodeChangeCounter++;
-    if (!isVipUser && _episodeChangeCounter >= 4) {
-      _episodeChangeCounter = 0;
-
+    // Tampilkan iklan setiap kelipatan 3 episode mutlak (Episode 3, 6, 9, dst.) untuk non-VIP
+    if (!isVipUser && targetEpisodeNumber > 0 && targetEpisodeNumber % 3 == 0) {
       try {
         final cfg = ref.read(adsConfigProvider);
         final adsSvc = ref.read(adsServiceProvider);
