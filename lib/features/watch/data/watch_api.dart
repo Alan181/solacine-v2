@@ -175,6 +175,7 @@ class WatchApi {
     int? episodeNumber,
     int? episodesPage,
     int? episodesPerPage,
+    Options? options,
   }) async {
     final qp = <String, dynamic>{};
     if (episodeNumber != null) qp['episode'] = episodeNumber;
@@ -183,6 +184,7 @@ class WatchApi {
     final res = await _dio.get<Map<String, dynamic>>(
       '/v1/watch/$slug',
       queryParameters: qp.isEmpty ? null : qp,
+      options: options,
     );
     final map = res.data ?? const <String, dynamic>{};
     if (map['status'] != true) {
