@@ -778,12 +778,19 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         ..clear()
         ..addEntries(data.episodes.map((e) => MapEntry(e.episodeNumber, e)));
 
+      // --- DIPERBAIKI: Membaca last_watched_episode_number dari API Laravel ---
       final forced = (widget.episodeNumber != null && (widget.episodeNumber ?? 0) > 0) ? (widget.episodeNumber ?? 1) : null;
+      final lastWatchedFromApi = (data.series.lastWatchedEpisodeNumber ?? 1);
+
       final activeNum = forced ??
-          (data.activeEpisodeNumber > 0
-              ? data.activeEpisodeNumber
-              : (data.episodes.isNotEmpty ? data.episodes.first.episodeNumber : 1));
+          (_restoreEpisodeNumber ?? 0) > 0 ? _restoreEpisodeNumber! :
+          (lastWatchedFromApi > 1 ? lastWatchedFromApi :
+              (data.activeEpisodeNumber > 0
+                  ? data.activeEpisodeNumber
+                  : (data.episodes.isNotEmpty ? data.episodes.first.episodeNumber : 1)));
+      
       final initial = widget.reelsPreview ? 0 : (_episodesTotal > 0 ? (activeNum - 1).clamp(0, _episodesTotal - 1) : 0);
+      // ---------------------------------------------------------------------
 
       final old = _pageController;
       final next = PageController(initialPage: initial);
