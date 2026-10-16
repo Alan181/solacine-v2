@@ -1,4 +1,4 @@
-import 'dart:async';
+Import 'dart:async';
 import 'dart:ui';
 
 import 'package:dio/dio.dart';
@@ -45,6 +45,15 @@ final dioProvider = Provider<Dio>((ref) {
         final sys = PlatformDispatcher.instance.locale.languageCode;
         final code = (stored == null || stored == 'system') ? sys : stored;
         options.headers['Accept-Language'] = normalizeLang(code);
+
+        // --- PENGAMANAN REELS PREVIEW OTOMATIS ---
+        // Jika request memiliki flag extra 'reels_preview: true',
+        // otomatis kirim header X-Reels-Preview ke backend agar history tidak tercatat.
+        if (options.extra['reels_preview'] == true) {
+          options.headers['X-Reels-Preview'] = 'true';
+        }
+        // ----------------------------------------
+
         handler.next(options);
       },
       onError: (err, handler) async {
