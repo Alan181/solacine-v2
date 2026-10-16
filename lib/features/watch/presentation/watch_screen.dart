@@ -1130,7 +1130,24 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           return;
         }
         await c.setPlaybackSpeed(_playbackSpeed);
-        await c.setLooping(true);
+        
+        // <-- DIUBAH: Set looping ke false agar tidak mengulang video yang sama
+        await c.setLooping(false);
+
+        // <-- DITAMBAHKAN: Listener untuk mendeteksi video selesai dan lanjut ke episode berikutnya
+        c.addListener(() {
+          if (!mounted || _disposed || opId != _videoOpId) return;
+          final value = c.value;
+          if (value.isInitialized && !value.isPlaying) {
+            if (value.position >= value.duration && value.duration > Duration.zero) {
+              final nextEpNum = _currentEpisodeNumber + 1;
+              if (nextEpNum <= _episodesTotal) {
+                _handleEpisodeChangeWithAds(nextEpNum);
+              }
+            }
+          }
+        });
+
         if (resumePosition != null && resumePosition > Duration.zero) {
           final dur = c.value.duration;
           final next = dur > Duration.zero && resumePosition > dur ? dur : resumePosition;
