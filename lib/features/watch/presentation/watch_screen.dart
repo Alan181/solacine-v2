@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
-import 'package:screen_security/screen_security.dart'; // <-- 1. Import screen_security
+import 'package:screen_security/screen_security.dart';
 import 'package:dramereel_mobile/shared/widgets/app_cached_image.dart';
 import '../../../app/i18n.dart';
 import '../../../shared/constants.dart';
@@ -53,7 +53,7 @@ class WatchScreen extends ConsumerStatefulWidget {
 }
 
 class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
-  final _screenSecurity = ScreenSecurity(); // <-- 2. Buat instance ScreenSecurity
+  final _screenSecurity = ScreenSecurity();
 
   var _loading = true;
   Object? _error;
@@ -111,8 +111,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   @override
   void initState() {
     super.initState();
-    
-    // <-- 3. Aktifkan proteksi screen security saat halaman dibuka
     _screenSecurity.enable();
 
     WidgetsBinding.instance.addObserver(this);
@@ -162,9 +160,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
   @override
   void dispose() {
-    // <-- 4. Nonaktifkan proteksi saat keluar dari halaman watch
     _screenSecurity.disable();
-
     WidgetsBinding.instance.removeObserver(this);
     _disposed = true;
     _videoOpId++;
@@ -549,7 +545,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     }
   }
 
-  // --- FUNGSI MENGELOLA IKLAN & LAPOR KE BACKEND SAAT SWIPE EPISODE ---
   Future<void> _handleEpisodeChangeWithAds(int targetEpisodeNumber) async {
     if (widget.reelsPreview) return;
 
@@ -558,7 +553,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     final expiresAt = (expiresRaw == null || expiresRaw.isEmpty) ? null : DateTime.tryParse(expiresRaw)?.toLocal();
     final isVipUser = expiresAt != null && expiresAt.isAfter(DateTime.now());
 
-    // Tampilkan iklan setiap kelipatan 3 episode mutlak (Episode 3, 6, 9, dst.) untuk non-VIP
     if (!isVipUser && targetEpisodeNumber > 0 && targetEpisodeNumber % 3 == 0) {
       try {
         final cfg = ref.read(adsConfigProvider);
@@ -602,7 +596,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       });
     }
 
-    // --- PANGGIL API AGAR BACKEND MENYIMPAN RIWAYAT TONTONAN TERBARU ---
     try {
       final freshData = await ref.read(watchApiProvider).show(
             slug: widget.slug,
@@ -768,12 +761,17 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           (initialEpisode == null ||
               initialEpisode <= 1 ||
               cached.episodes.any((e) => e.episodeNumber == initialEpisode));
+      
+      // Mengirim flag reels_preview ke Dio Interceptor
       final data = canUseCache
           ? cached
           : await ref.read(watchApiProvider).show(
                 slug: widget.slug,
                 episodeNumber: initialEpisode,
                 episodesPerPage: _episodesPerPage,
+                options: Options(
+                  extra: {'reels_preview': widget.reelsPreview},
+                ),
               );
       ReelsPreloadManager.cacheData(widget.slug, data);
       if (!mounted) return;
@@ -847,6 +845,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             episodeNumber: episodeNumber,
             episodesPage: page,
             episodesPerPage: _episodesPerPage,
+            options: Options(
+              extra: {'reels_preview': widget.reelsPreview},
+            ),
           );
       if (!mounted) return;
 
@@ -1697,6 +1698,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             episodeNumber: episodeNumber,
             episodesPage: page,
             episodesPerPage: _episodesPerPage,
+            options: Options(
+              extra: {'reels_preview': widget.reelsPreview},
+            ),
           );
       if (!mounted) return;
 
