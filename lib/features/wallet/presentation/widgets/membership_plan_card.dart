@@ -79,12 +79,31 @@ class _MembershipPlanCardState extends State<MembershipPlanCard> {
     return t.t('days', params: {'days': days.toString()});
   }
 
+  // Fungsi helper untuk memformat mata uang secara dinamis (IDR vs USD)
+  String _formatCurrency(num amount, String? currency) {
+    final curr = (currency == null || currency.isEmpty) ? 'IDR' : currency.toUpperCase();
+    if (curr == 'IDR') {
+      final formattedNumber = amount.toInt().toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]}.',
+      );
+      return 'Rp $formattedNumber';
+    } else {
+      return '\$${amount.toDouble().toStringAsFixed(2)}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppI18n.of(context);
     final pkg = widget.pkg;
-    final currentPrice = pkg.currentPriceAmount.toDouble().toStringAsFixed(2);
-    final originalPrice = pkg.originalPriceAmount.toDouble().toStringAsFixed(2);
+    
+    // Ambil mata uang dari DTO (default ke IDR jika kosong)
+    final currency = pkg.priceCurrency.isNotEmpty ? pkg.priceCurrency : 'IDR';
+    
+    final currentPrice = _formatCurrency(pkg.currentPriceAmount, currency);
+    final originalPrice = _formatCurrency(pkg.originalPriceAmount, currency);
+    
     final promoActive = pkg.promoActive && _secondsLeft > 0;
     final planLabel = _planLabel(t, pkg.durationDays);
     final titleText = t.t('membership_subscribe_to', params: {'plan': planLabel});
@@ -295,7 +314,7 @@ class _MembershipPlanCardState extends State<MembershipPlanCard> {
                         children: [
                           if (promoActive)
                             Text(
-                              '\$$originalPrice',
+                              originalPrice,
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.55),
                                 fontSize: 12,
@@ -305,10 +324,10 @@ class _MembershipPlanCardState extends State<MembershipPlanCard> {
                               ),
                             ),
                           Text(
-                            '\$$currentPrice',
+                            currentPrice,
                             style: const TextStyle(
                               color: Color(0xfffbbf24),
-                              fontSize: 28,
+                              fontSize: 24, // Disesuaikan sedikit ukurannya agar teks nominal Rp tidak terlalu panjang
                               fontWeight: FontWeight.w900,
                               height: 1.0,
                             ),
