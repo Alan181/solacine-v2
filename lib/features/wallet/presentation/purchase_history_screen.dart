@@ -829,6 +829,8 @@ String _providerLabel(AppI18n t, String provider) {
       return t.t('razorpay');
     case 'xendit':
       return 'Xendit';
+    case 'duitku':
+      return 'Duitku';
     case 'google_play':
       return t.t('google_play');
     case 'app_store':
