@@ -831,6 +831,8 @@ String _providerLabel(AppI18n t, String provider) {
       return 'Xendit';
     case 'duitku':
       return 'Duitku';
+    case 'midtrans':
+      return 'Midtrans'; // Ditambahkan agar Midtrans muncul dengan rapi
     case 'google_play':
       return t.t('google_play');
     case 'app_store':
