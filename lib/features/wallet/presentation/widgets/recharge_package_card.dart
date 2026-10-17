@@ -17,7 +17,19 @@ class RechargePackageCard extends StatelessWidget {
   final String? badgeText;
 
   String _formatPrice(CoinPackageDto item) {
-    final currency = item.priceCurrency.toUpperCase();
+    final currency = (item.priceCurrency.isEmpty) ? 'IDR' : item.priceCurrency.toUpperCase();
+    final amount = item.priceAmount;
+
+    if (currency == 'IDR') {
+      // Format khusus IDR: Rp X.XXX.XXX (tanpa desimal)
+      final formattedNumber = amount.toInt().toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]}.',
+      );
+      return 'Rp $formattedNumber';
+    }
+
+    // Format untuk mata uang lain (USD, EUR, GBP, dll)
     final symbol = currency == 'USD'
         ? '\$'
         : (currency == 'EUR'
@@ -25,10 +37,10 @@ class RechargePackageCard extends StatelessWidget {
             : (currency == 'GBP'
                 ? '£'
                 : ''));
-    final amount = item.priceAmount;
-    // If it's a whole number or decimal
+    
     final isWhole = (amount % 1) == 0;
     final formatted = isWhole ? amount.toInt().toString() : amount.toStringAsFixed(2);
+    
     if (symbol.isNotEmpty) {
       return '$symbol$formatted';
     }
@@ -165,13 +177,19 @@ class RechargePackageCard extends StatelessWidget {
                           ],
                         ),
                         alignment: Alignment.center,
-                        child: Text(
-                          priceLabel,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.2,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: Text(
+                              priceLabel,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
                           ),
                         ),
                       ),
