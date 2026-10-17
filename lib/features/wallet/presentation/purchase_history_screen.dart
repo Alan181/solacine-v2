@@ -1,32 +1,58 @@
-import 'package:dio/dio.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/i18n.dart';
+Import '../../../app/i18n.dart';
 import '../data/wallet_api.dart';
 
+// Fungsi helper pemformatan harga dinamis (IDR vs mata uang lain)
+String _formatCurrency(num amount, String? currency) {
+  final curr = (currency == null || currency.isEmpty) ? 'IDR' : currency.toUpperCase();
+  
+  if (curr == 'IDR') {
+    final formattedNumber = amount.toInt().toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]}.',
+    );
+    return 'Rp $formattedNumber';
+  }
+
+  final symbol = curr == 'USD'
+      ? '\$'
+      : (curr == 'EUR'
+          ? '€'
+          : (curr == 'GBP'
+              ? '£'
+              : ''));
+  final formatted = amount.toDouble().toStringAsFixed(2);
+  if (symbol.isNotEmpty) {
+    return '$symbol$formatted';
+  }
+  return '$formatted $curr';
+}
+
 class PurchaseHistoryScreen extends ConsumerStatefulWidget {
-  const PurchaseHistoryScreen({super.key});
+  Const PurchaseHistoryScreen({super.key});
 
   @override
   ConsumerState<PurchaseHistoryScreen> createState() => _PurchaseHistoryScreenState();
 }
 
 class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
-  final _scrollController = ScrollController();
+  Final _scrollController = ScrollController();
 
   Object? _error;
-  bool _loading = true;
+  Bool _loading = true;
 
-  final List<PaymentOrderDto> _orders = [];
+  Final List<PaymentOrderDto> _orders = [];
   WalletPagination? _ordersPagination;
-  bool _loadingMore = false;
+  Bool _loadingMore = false;
 
   @override
   void initState() {
-    super.initState();
+    Super.initState();
     _scrollController.addListener(_onScroll);
     Future.microtask(_loadOrders);
   }
@@ -38,11 +64,11 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
     super.dispose();
   }
 
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    final max = _scrollController.position.maxScrollExtent;
-    final pos = _scrollController.position.pixels;
-    if (max - pos < 240) {
+  Void _onScroll() {
+    If (!_scrollController.hasClients) return;
+    Final max = _scrollController.position.maxScrollExtent;
+    Final pos = _scrollController.position.pixels;
+    If (max - pos < 240) {
       _loadMore();
     }
   }
@@ -53,9 +79,9 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
       _error = null;
     });
 
-    try {
-      final page = await ref.read(walletApiProvider).paymentOrders(page: 1, perPage: 20);
-      if (!mounted) return;
+    Try {
+      Final page = await ref.read(walletApiProvider).paymentOrders(page: 1, perPage: 20);
+      If (!mounted) return;
       setState(() {
         _orders
           ..clear()
@@ -63,25 +89,25 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
         _ordersPagination = page.pagination;
       });
     } on DioException catch (e) {
-      if (!mounted) return;
+      If (!mounted) return;
       setState(() => _error = e);
     } catch (e) {
-      if (!mounted) return;
+      If (!mounted) return;
       setState(() => _error = e);
     } finally {
-      if (mounted) setState(() => _loading = false);
+      If (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _loadMore() async {
-    if (_loadingMore) return;
-    final p = _ordersPagination;
-    if (p == null || p.currentPage >= p.lastPage) return;
+    If (_loadingMore) return;
+    Final p = _ordersPagination;
+    If (p == null || p.currentPage >= p.lastPage) return;
 
     setState(() => _loadingMore = true);
-    try {
-      final page = await ref.read(walletApiProvider).paymentOrders(page: p.currentPage + 1, perPage: p.perPage);
-      if (!mounted) return;
+    Try {
+      Final page = await ref.read(walletApiProvider).paymentOrders(page: p.currentPage + 1, perPage: p.perPage);
+      If (!mounted) return;
       setState(() {
         _orders.addAll(page.items);
         _ordersPagination = page.pagination;
@@ -89,89 +115,89 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
     } catch (_) {
       // Ignore pagination errors
     } finally {
-      if (mounted) setState(() => _loadingMore = false);
+      If (mounted) setState(() => _loadingMore = false);
     }
   }
 
-  void _goBack() {
-    if (context.canPop()) {
-      context.pop();
+  Void _goBack() {
+    If (context.canPop()) {
+      Context.pop();
     } else {
-      context.go('/profile');
+      Context.go('/profile');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final t = AppI18n.of(context);
-    final showError = _error != null && !_loading && _orders.isEmpty;
+    Final t = AppI18n.of(context);
+    Final showError = _error != null && !_loading && _orders.isEmpty;
 
-    return PopScope(
-      canPop: context.canPop(),
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
+    Return PopScope(
+      CanPop: context.canPop(),
+      OnPopInvokedWithResult: (didPop, result) {
+        If (didPop) return;
         _goBack();
       },
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0C0D0E),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF0C0D0E),
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          centerTitle: true,
-          leading: IconButton(
-            onPressed: _goBack,
-            icon: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: const Color(0xFF18191D),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFF26282E)),
+      Child: Scaffold(
+        BackgroundColor: const Color(0xFF0C0D0E),
+        AppBar: AppBar(
+          BackgroundColor: const Color(0xFF0C0D0E),
+          SurfaceTintColor: Colors.transparent,
+          Elevation: 0,
+          CenterTitle: true,
+          Leading: IconButton(
+            OnPressed: _goBack,
+            Icon: Container(
+              Width: 34,
+              Height: 34,
+              Decoration: BoxDecoration(
+                Color: const Color(0xFF18191D),
+                BorderRadius: BorderRadius.circular(8),
+                Border: Border.all(color: const Color(0xFF26282E)),
               ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded, size: 14, color: Color(0xFFE4E4E7)),
+              Child: const Icon(Icons.arrow_back_ios_new_rounded, size: 14, color: Color(0xFFE4E4E7)),
             ),
           ),
-          title: Text(
-            t.t('purchase_history'),
-            style: const TextStyle(
-              color: Color(0xFFF4F4F5),
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
+          Title: Text(
+            T.t('purchase_history'),
+            Style: const TextStyle(
+              Color: Color(0xFFF4F4F5),
+              FontSize: 16,
+              FontWeight: FontWeight.w600,
+              LetterSpacing: 0.2,
             ),
           ),
-          actions: [
+          Actions: [
             IconButton(
-              onPressed: _loadOrders,
-              tooltip: t.t('retry'),
-              icon: const Icon(
+              OnPressed: _loadOrders,
+              Tooltip: t.t('retry'),
+              Icon: const Icon(
                 Icons.refresh_rounded,
-                size: 19,
-                color: Color(0xFFA1A1AA),
+                Size: 19,
+                Color: Color(0xFFA1A1AA),
               ),
             ),
-            const SizedBox(width: 4),
+            ConstrainedBox(constraints: const BoxConstraints(maxWidth: 4)),
           ],
         ),
-        body: showError
+        Body: showError
             ? RefreshIndicator(
-                onRefresh: _loadOrders,
-                color: const Color(0xFFA1A1AA),
-                backgroundColor: const Color(0xFF18191D),
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-                  children: [
+                OnRefresh: _loadOrders,
+                Color: const Color(0xFFA1A1AA),
+                BackgroundColor: const Color(0xFF18191D),
+                Child: ListView(
+                  Physics: const AlwaysScrollableScrollPhysics(),
+                  Padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+                  Children: [
                     _ErrorState(onRetry: _loadOrders),
                   ],
                 ),
               )
             : RefreshIndicator(
-                onRefresh: _loadOrders,
-                color: const Color(0xFFA1A1AA),
-                backgroundColor: const Color(0xFF18191D),
-                child: _loading && _orders.isEmpty
+                OnRefresh: _loadOrders,
+                Color: const Color(0xFFA1A1AA),
+                BackgroundColor: const Color(0xFF18191D),
+                Child: _loading && _orders.isEmpty
                     ? _buildSkeletonList()
                     : _orders.isEmpty
                         ? _buildEmptyState(t)
@@ -182,60 +208,60 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
   }
 
   Widget _buildSkeletonList() {
-    return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 20),
-      itemCount: 8,
-      itemBuilder: (context, index) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF131418),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFF1E2026)),
+    Return ListView.builder(
+      Physics: const AlwaysScrollableScrollPhysics(),
+      Padding: const EdgeInsets.fromLTRB(14, 8, 14, 20),
+      ItemCount: 8,
+      ItemBuilder: (context, index) {
+        Return Container(
+          Margin: const EdgeInsets.only(bottom: 8),
+          Padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          Decoration: BoxDecoration(
+            Color: const Color(0xFF131418),
+            BorderRadius: BorderRadius.circular(10),
+            Border: Border.all(color: const Color(0xFF1E2026)),
           ),
-          child: Row(
-            children: [
+          Child: Row(
+            Children: [
               Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1C1E24),
-                  borderRadius: BorderRadius.circular(6),
+                Width: 32,
+                Height: 32,
+                Decoration: BoxDecoration(
+                  Color: const Color(0xFF1C1E24),
+                  BorderRadius: BorderRadius.circular(6),
                 ),
               ),
-              const SizedBox(width: 10),
+              ConstrainedBox(constraints: const BoxConstraints(maxWidth: 10)),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                Child: Column(
+                  CrossAxisAlignment: CrossAxisAlignment.start,
+                  Children: [
                     Container(
-                      width: 110,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF22242B),
-                        borderRadius: BorderRadius.circular(3),
+                      Width: 110,
+                      Height: 12,
+                      Decoration: BoxDecoration(
+                        Color: const Color(0xFF22242B),
+                        BorderRadius: BorderRadius.circular(3),
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    ConstrainedBox(constraints: const BoxConstraints(maxWidth: 5)),
                     Container(
-                      width: 70,
-                      height: 9,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1A1C22),
-                        borderRadius: BorderRadius.circular(3),
+                      Width: 70,
+                      Height: 9,
+                      Decoration: BoxDecoration(
+                        Color: const Color(0xFF1A1C22),
+                        BorderRadius: BorderRadius.circular(3),
                       ),
                     ),
                   ],
                 ),
               ),
               Container(
-                width: 50,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF22242B),
-                  borderRadius: BorderRadius.circular(3),
+                Width: 50,
+                Height: 14,
+                Decoration: BoxDecoration(
+                  Color: const Color(0xFF22242B),
+                  BorderRadius: BorderRadius.circular(3),
                 ),
               ),
             ],
@@ -246,47 +272,47 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
   }
 
   Widget _buildEmptyState(AppI18n t) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(24, 60, 24, 40),
-      children: [
+    Return ListView(
+      Physics: const AlwaysScrollableScrollPhysics(),
+      Padding: const EdgeInsets.fromLTRB(24, 60, 24, 40),
+      Children: [
         Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+          Child: Column(
+            MainAxisAlignment: MainAxisAlignment.center,
+            Children: [
               Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF16171B),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF26282E)),
+                Width: 64,
+                Height: 64,
+                Decoration: BoxDecoration(
+                  Color: const Color(0xFF16171B),
+                  Shape: BoxShape.circle,
+                  Border: Border.all(color: const Color(0xFF26282E)),
                 ),
-                child: const Center(
-                  child: Icon(
+                Child: const Center(
+                  Child: Icon(
                     Icons.receipt_long_outlined,
-                    size: 28,
-                    color: Color(0xFF71717A),
+                    Size: 28,
+                    Color: Color(0xFF71717A),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              ConstrainedBox(constraints: const BoxConstraints(maxWidth: 16)),
               Text(
-                t.t('no_transactions'),
-                style: const TextStyle(
-                  color: Color(0xFFE4E4E7),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                T.t('no_transactions'),
+                Style: const TextStyle(
+                  Color: Color(0xFFE4E4E7),
+                  FontSize: 15,
+                  FontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 6),
+              ConstrainedBox(constraints: const BoxConstraints(maxWidth: 6)),
               const Text(
                 'All completed purchase records will be listed here.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Color(0xFF71717A),
-                  fontSize: 12,
-                  height: 1.4,
+                TextAlign: TextAlign.center,
+                Style: TextStyle(
+                  Color: Color(0xFF71717A),
+                  FontSize: 12,
+                  Height: 1.4,
                 ),
               ),
             ],
@@ -297,30 +323,30 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
   }
 
   Widget _buildOrdersList(AppI18n t) {
-    final list = <Widget>[];
+    Final list = <Widget>[];
     String? currentDay;
 
-    for (var i = 0; i < _orders.length; i++) {
-      final order = _orders[i];
-      final dt = order.createdAt;
-      final day = dt == null ? '' : _formatDay(dt);
+    For (var i = 0; i < _orders.length; i++) {
+      Final order = _orders[i];
+      Final dt = order.createdAt;
+      Final day = dt == null ? '' : _formatDay(dt);
 
-      if (currentDay != day) {
-        currentDay = day;
-        list.add(
+      If (currentDay != day) {
+        CurrentDay = day;
+        List.add(
           Padding(
-            padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
-            child: Row(
-              children: [
-                const Icon(Icons.calendar_today_outlined, size: 11, color: Color(0xFF71717A)),
-                const SizedBox(width: 5),
+            Padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
+            Child: Row(
+              Children: [
+                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 11)),
+                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 5)),
                 Text(
-                  day.isEmpty ? '—' : day,
-                  style: const TextStyle(
-                    color: Color(0xFF8E8E93),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.3,
+                  Day.isEmpty ? '—' : day,
+                  Style: const TextStyle(
+                    Color: Color(0xFF8E8E93),
+                    FontSize: 11,
+                    FontWeight: FontWeight.w600,
+                    LetterSpacing: 0.3,
                   ),
                 ),
               ],
@@ -329,109 +355,110 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
         );
       }
 
-      list.add(_CompactOrderCard(
-        item: order,
-        onTap: () => _showOrderDetailsSheet(context, order, t),
+      List.add(_CompactOrderCard(
+        Item: order,
+        OnTap: () => _showOrderDetailsSheet(context, order, t),
       ));
     }
 
-    if (_loadingMore) {
-      list.add(
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 14),
-          child: Center(
-            child: SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(color: Color(0xFF71717A), strokeWidth: 2),
+    If (_loadingMore) {
+      List.add(
+        Const Padding(
+          Padding: EdgeInsets.symmetric(vertical: 14),
+          Child: Center(
+            Child: SizedBox(
+              Width: 18,
+              Height: 18,
+              Child: CircularProgressIndicator(color: Color(0xFF71717A), strokeWidth: 2),
             ),
           ),
         ),
       );
     }
 
-    return ListView(
-      controller: _scrollController,
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
-      children: list,
+    Return ListView(
+      Controller: _scrollController,
+      Physics: const AlwaysScrollableScrollPhysics(),
+      Padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
+      Children: list,
     );
   }
 
-  void _showOrderDetailsSheet(BuildContext context, PaymentOrderDto order, AppI18n t) {
-    final isVip = order.itemType == 'vip' || order.packageName.toLowerCase().contains('vip');
-    final dt = order.createdAt;
-    final dateFormatted = dt == null ? '—' : '${_formatDay(dt)} ${_formatTime(dt)}';
-    final isPaid = order.status.trim().toLowerCase() == 'paid' || order.paidAt != null;
+  Void _showOrderDetailsSheet(BuildContext context, PaymentOrderDto order, AppI18n t) {
+    Final isVip = order.itemType == 'vip' || order.packageName.toLowerCase().contains('vip');
+    Final dt = order.createdAt;
+    Final dateFormatted = dt == null ? '—' : '${_formatDay(dt)} ${_formatTime(dt)}';
+    Final isPaid = order.status.trim().toLowerCase() == 'paid' || order.paidAt != null;
+    Final formattedPrice = _formatCurrency(order.amount, order.currency);
 
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
-          decoration: const BoxDecoration(
-            color: Color(0xFF141518),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            border: Border(
-              top: BorderSide(color: Color(0xFF26282E)),
+    ShowModalBottomSheet<void>(
+      Context: context,
+      BackgroundColor: Colors.transparent,
+      IsScrollControlled: true,
+      Builder: (ctx) {
+        Return Container(
+          Padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+          Decoration: const BoxDecoration(
+            Color: Color(0xFF141518),
+            BorderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            Border: Border(
+              Top: BorderSide(color: Color(0xFF26282E)),
             ),
           ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+          Child: SafeArea(
+            Top: false,
+            Child: Column(
+              MainAxisSize: MainAxisSize.min,
+              CrossAxisAlignment: CrossAxisAlignment.stretch,
+              Children: [
                 Center(
-                  child: Container(
-                    width: 32,
-                    height: 3.5,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3F3F46),
-                      borderRadius: BorderRadius.circular(2),
+                  Child: Container(
+                    Width: 32,
+                    Height: 3.5,
+                    Decoration: BoxDecoration(
+                      Color: const Color(0xFF3F3F46),
+                      BorderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
-                const SizedBox(height: 14),
+                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 14)),
                 Row(
-                  children: [
+                  Children: [
                     Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E2026),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF2E3038)),
+                      Width: 38,
+                      Height: 38,
+                      Decoration: BoxDecoration(
+                        Color: const Color(0xFF1E2026),
+                        BorderRadius: BorderRadius.circular(8),
+                        Border: Border.all(color: const Color(0xFF2E3038)),
                       ),
-                      child: Center(
-                        child: Icon(
-                          isVip ? Icons.badge_outlined : Icons.receipt_outlined,
-                          color: const Color(0xFFD4D4D8),
-                          size: 20,
+                      Child: Center(
+                        Child: Icon(
+                          IsVip ? Icons.badge_outlined : Icons.receipt_outlined,
+                          Color: const Color(0xFFD4D4D8),
+                          Size: 20,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    ConstrainedBox(constraints: const BoxConstraints(maxWidth: 12)),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                      Child: Column(
+                        CrossAxisAlignment: CrossAxisAlignment.start,
+                        Children: [
                           Text(
-                            order.packageName.isEmpty ? t.t('purchase') : order.packageName,
-                            style: const TextStyle(
-                              color: Color(0xFFF4F4F5),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                            Order.packageName.isEmpty ? t.t('purchase') : order.packageName,
+                            Style: const TextStyle(
+                              Color: Color(0xFFF4F4F5),
+                              FontSize: 15,
+                              FontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 2)),
                           Text(
                             _providerLabel(t, order.provider),
-                            style: const TextStyle(
-                              color: Color(0xFF71717A),
-                              fontSize: 11,
+                            Style: const TextStyle(
+                              Color: Color(0xFF71717A),
+                              FontSize: 11,
                             ),
                           ),
                         ],
@@ -440,31 +467,31 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                     _StatusBadge(status: order.status, isPaid: isPaid),
                   ],
                 ),
-                const SizedBox(height: 16),
+                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 16)),
                 const Divider(color: Color(0xFF22242B), height: 1),
-                const SizedBox(height: 12),
+                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 12)),
                 _DetailRow(label: 'Order Reference', value: order.paymentOrderId, canCopy: true),
                 _DetailRow(label: 'Item Type', value: isVip ? 'VIP Membership' : 'Coin Package'),
-                if (order.coins > 0)
+                If (order.coins > 0)
                   _DetailRow(label: 'Coins Credited', value: '+${order.coins} Coins', highlightValue: true),
                 _DetailRow(label: 'Date & Time', value: dateFormatted),
                 _DetailRow(label: 'Payment Method', value: _providerLabel(t, order.provider)),
                 _DetailRow(
-                  label: 'Total Paid',
-                  value: '${order.currency} ${(order.amount).toDouble().toStringAsFixed(2)}',
-                  isBoldPrice: true,
+                  Label: 'Total Paid',
+                  Value: formattedPrice,
+                  IsBoldPrice: true,
                 ),
-                const SizedBox(height: 16),
+                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 16)),
                 SizedBox(
-                  height: 42,
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF22242B),
-                      foregroundColor: const Color(0xFFE4E4E7),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  Height: 42,
+                  Child: FilledButton(
+                    OnPressed: () => Navigator.pop(ctx),
+                    Style: FilledButton.styleFrom(
+                      BackgroundColor: const Color(0xFF22242B),
+                      ForegroundColor: const Color(0xFFE4E4E7),
+                      Shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                    Child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
                   ),
                 ),
               ],
@@ -477,110 +504,111 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
 }
 
 class _CompactOrderCard extends StatelessWidget {
-  const _CompactOrderCard({required this.item, required this.onTap});
+  Const _CompactOrderCard({required this.item, required this.onTap});
 
-  final PaymentOrderDto item;
-  final VoidCallback onTap;
+  Final PaymentOrderDto item;
+  Final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final t = AppI18n.of(context);
-    final isVip = item.itemType == 'vip' || item.packageName.toLowerCase().contains('vip');
-    final dt = item.createdAt;
-    final timeStr = dt == null ? '' : _formatTime(dt);
-    final statusNorm = item.status.trim().toLowerCase();
-    final isPaid = statusNorm == 'paid' || item.paidAt != null;
+    Final t = AppI18n.of(context);
+    Final isVip = item.itemType == 'vip' || item.packageName.toLowerCase().contains('vip');
+    Final dt = item.createdAt;
+    Final timeStr = dt == null ? '' : _formatTime(dt);
+    Final statusNorm = item.status.trim().toLowerCase();
+    Final isPaid = statusNorm == 'paid' || item.paidAt != null;
+    Final formattedPrice = _formatCurrency(item.amount, item.currency);
 
-    final shortOrderId = item.paymentOrderId.isEmpty
+    Final shortOrderId = item.paymentOrderId.isEmpty
         ? ''
         : (item.paymentOrderId.length > 10 ? item.paymentOrderId.substring(0, 10) : item.paymentOrderId);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF131418),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF1E2026)),
+    Return Container(
+      Margin: const EdgeInsets.only(bottom: 6),
+      Decoration: BoxDecoration(
+        Color: const Color(0xFF131418),
+        BorderRadius: BorderRadius.circular(10),
+        Border: Border.all(color: const Color(0xFF1E2026)),
       ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-            child: Row(
-              children: [
+      Child: Material(
+        Color: Colors.transparent,
+        BorderRadius: BorderRadius.circular(10),
+        Child: InkWell(
+          OnTap: onTap,
+          BorderRadius: BorderRadius.circular(10),
+          Child: Padding(
+            Padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+            Child: Row(
+              Children: [
                 // Compact formal icon
                 Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A1C22),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF262830)),
+                  Width: 34,
+                  Height: 34,
+                  Decoration: BoxDecoration(
+                    Color: const Color(0xFF1A1C22),
+                    BorderRadius: BorderRadius.circular(8),
+                    Border: Border.all(color: const Color(0xFF262830)),
                   ),
-                  child: Center(
-                    child: Icon(
-                      isVip ? Icons.badge_outlined : Icons.receipt_outlined,
-                      size: 16,
-                      color: const Color(0xFF9E9EA7),
+                  Child: Center(
+                    Child: Icon(
+                      IsVip ? Icons.badge_outlined : Icons.receipt_outlined,
+                      Size: 16,
+                      Color: const Color(0xFF9E9EA7),
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 10)),
                 // Title and provider
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+                  Child: Column(
+                    CrossAxisAlignment: CrossAxisAlignment.start,
+                    MainAxisSize: MainAxisSize.min,
+                    Children: [
                       Text(
-                        item.packageName.isEmpty ? t.t('purchase') : item.packageName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFFE4E4E7),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                        Item.packageName.isEmpty ? t.t('purchase') : item.packageName,
+                        MaxLines: 1,
+                        Overflow: TextOverflow.ellipsis,
+                        Style: const TextStyle(
+                          Color: Color(0xFFE4E4E7),
+                          FontSize: 13,
+                          FontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      ConstrainedBox(constraints: const BoxConstraints(maxWidth: 2)),
                       Row(
-                        children: [
+                        Children: [
                           Text(
                             _providerLabel(t, item.provider),
-                            style: const TextStyle(
-                              color: Color(0xFF71717A),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w400,
+                            Style: const TextStyle(
+                              Color: Color(0xFF71717A),
+                              FontSize: 11,
+                              FontWeight: FontWeight.w400,
                             ),
                           ),
-                          if (shortOrderId.isNotEmpty) ...[
-                            const Text(
+                          If (shortOrderId.isNotEmpty) ...[
+                            Const Text(
                               ' • ',
-                              style: TextStyle(color: Color(0xFF3F3F46), fontSize: 10),
+                              Style: TextStyle(color: Color(0xFF3F3F46), fontSize: 10),
                             ),
                             Text(
                               '#$shortOrderId',
-                              style: const TextStyle(
-                                color: Color(0xFF52525B),
-                                fontSize: 10.5,
-                                fontFamily: 'monospace',
+                              Style: const TextStyle(
+                                Color: Color(0xFF52525B),
+                                FontSize: 10.5,
+                                FontFamily: 'monospace',
                               ),
                             ),
                           ],
-                          if (timeStr.isNotEmpty) ...[
-                            const Text(
+                          If (timeStr.isNotEmpty) ...[
+                            Const Text(
                               ' • ',
-                              style: TextStyle(color: Color(0xFF3F3F46), fontSize: 10),
+                              Style: TextStyle(color: Color(0xFF3F3F46), fontSize: 10),
                             ),
                             Text(
-                              timeStr,
-                              style: const TextStyle(
-                                color: Color(0xFF52525B),
-                                fontSize: 10.5,
+                              TimeStr,
+                              Style: const TextStyle(
+                                Color: Color(0xFF52525B),
+                                FontSize: 10.5,
                               ),
                             ),
                           ],
@@ -589,21 +617,21 @@ class _CompactOrderCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 8)),
                 // Amount and status
                 Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+                  CrossAxisAlignment: CrossAxisAlignment.end,
+                  MainAxisSize: MainAxisSize.min,
+                  Children: [
                     Text(
-                      '${item.currency} ${(item.amount).toDouble().toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: Color(0xFFF4F4F5),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                      FormattedPrice,
+                      Style: const TextStyle(
+                        Color: Color(0xFFF4F4F5),
+                        FontSize: 13,
+                        FontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    ConstrainedBox(constraints: const BoxConstraints(maxWidth: 3)),
                     _StatusBadge(status: item.status, isPaid: isPaid, isCompact: true),
                   ],
                 ),
@@ -617,16 +645,16 @@ class _CompactOrderCard extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status, required this.isPaid, this.isCompact = false});
+  Const _StatusBadge({required this.status, required this.isPaid, this.isCompact = false});
 
-  final String status;
-  final bool isPaid;
-  final bool isCompact;
+  Final String status;
+  Final bool isPaid;
+  Final bool isCompact;
 
   @override
   Widget build(BuildContext context) {
-    final t = AppI18n.of(context);
-    final statusNorm = status.trim().toLowerCase();
+    Final t = AppI18n.of(context);
+    Final statusNorm = status.trim().toLowerCase();
 
     Color bg;
     Color border;
@@ -634,63 +662,63 @@ class _StatusBadge extends StatelessWidget {
     String label;
     IconData icon;
 
-    if (isPaid || statusNorm == 'paid') {
-      bg = const Color(0xFF13231B);
-      border = const Color(0xFF1D3B2D);
-      text = const Color(0xFF4ADE80);
-      label = t.t('payment_status_paid');
-      icon = Icons.check_circle_outline_rounded;
+    If (isPaid || statusNorm == 'paid') {
+      Bg = const Color(0xFF13231B);
+      Border = const Color(0xFF1D3B2D);
+      Text = const Color(0xFF4ADE80);
+      Label = t.t('payment_status_paid');
+      Icon = Icons.check_circle_outline_rounded;
     } else if (statusNorm == 'pending' || statusNorm == 'processing') {
-      bg = const Color(0xFF261E14);
-      border = const Color(0xFF42321C);
-      text = const Color(0xFFFBBF24);
-      label = t.t('payment_status_pending');
-      icon = Icons.schedule_rounded;
+      Bg = const Color(0xFF261E14);
+      Border = const Color(0xFF42321C);
+      Text = const Color(0xFFFBBF24);
+      Label = t.t('payment_status_pending');
+      Icon = Icons.schedule_rounded;
     } else {
-      bg = const Color(0xFF241517);
-      border = const Color(0xFF402024);
-      text = const Color(0xFFF87171);
-      label = t.t('payment_status_failed');
-      icon = Icons.error_outline_rounded;
+      Bg = const Color(0xFF241517);
+      Border = const Color(0xFF402024);
+      Text = const Color(0xFFF87171);
+      Label = t.t('payment_status_failed');
+      Icon = Icons.error_outline_rounded;
     }
 
-    if (isCompact) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5.5, vertical: 1.5),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: border, width: 0.8),
+    If (isCompact) {
+      Return Container(
+        Padding: const EdgeInsets.symmetric(horizontal: 5.5, vertical: 1.5),
+        Decoration: BoxDecoration(
+          Color: bg,
+          BorderRadius: BorderRadius.circular(4),
+          Border: Border.all(color: border, width: 0.8),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        Child: Row(
+          MainAxisSize: MainAxisSize.min,
+          Children: [
             Icon(icon, size: 9, color: text),
-            const SizedBox(width: 3),
+            ConstrainedBox(constraints: const BoxConstraints(maxWidth: 3)),
             Text(
-              label,
-              style: TextStyle(color: text, fontSize: 9.5, fontWeight: FontWeight.w500),
+              Label,
+              Style: TextStyle(color: text, fontSize: 9.5, fontWeight: FontWeight.w500),
             ),
           ],
         ),
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: border),
+    Return Container(
+      Padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+      Decoration: BoxDecoration(
+        Color: bg,
+        BorderRadius: BorderRadius.circular(6),
+        Border: Border.all(color: border),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      Child: Row(
+        MainAxisSize: MainAxisSize.min,
+        Children: [
           Icon(icon, size: 11, color: text),
-          const SizedBox(width: 4),
+          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 4)),
           Text(
-            label,
-            style: TextStyle(color: text, fontSize: 10.5, fontWeight: FontWeight.w500),
+            Label,
+            Style: TextStyle(color: text, fontSize: 10.5, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -699,73 +727,73 @@ class _StatusBadge extends StatelessWidget {
 }
 
 class _DetailRow extends StatelessWidget {
-  const _DetailRow({
-    required this.label,
-    required this.value,
-    this.canCopy = false,
-    this.highlightValue = false,
-    this.isBoldPrice = false,
+  Const _DetailRow({
+    Required this.label,
+    Required this.value,
+    This.canCopy = false,
+    This.highlightValue = false,
+    This.isBoldPrice = false,
   });
 
-  final String label;
-  final String value;
-  final bool canCopy;
-  final bool highlightValue;
-  final bool isBoldPrice;
+  Final String label;
+  Final String value;
+  Final bool canCopy;
+  Final bool highlightValue;
+  Final bool isBoldPrice;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.5),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
+    Return Padding(
+      Padding: const EdgeInsets.symmetric(vertical: 4.5),
+      Child: Row(
+        MainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Children: [
           Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF71717A),
-              fontSize: 12,
+            Label,
+            Style: const TextStyle(
+              Color: Color(0xFF71717A),
+              FontSize: 12,
             ),
           ),
-          const SizedBox(width: 12),
+          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 12)),
           Flexible(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+            Child: Row(
+              MainAxisSize: MainAxisSize.min,
+              Children: [
                 Flexible(
-                  child: Text(
-                    value.isEmpty ? '—' : value,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: highlightValue
+                  Child: Text(
+                    Value.isEmpty ? '—' : value,
+                    Overflow: TextOverflow.ellipsis,
+                    Style: TextStyle(
+                      Color: highlightValue
                           ? const Color(0xFFE4E4E7)
                           : (isBoldPrice ? const Color(0xFFF4F4F5) : const Color(0xFFD4D4D8)),
-                      fontSize: isBoldPrice ? 14 : 12,
-                      fontWeight: (highlightValue || isBoldPrice) ? FontWeight.w600 : FontWeight.w400,
-                      fontFamily: canCopy ? 'monospace' : null,
+                      FontSize: isBoldPrice ? 14 : 12,
+                      FontWeight: (highlightValue || isBoldPrice) ? FontWeight.w600 : FontWeight.w400,
+                      FontFamily: canCopy ? 'monospace' : null,
                     ),
                   ),
                 ),
-                if (canCopy && value.isNotEmpty) ...[
-                  const SizedBox(width: 6),
+                If (canCopy && value.isNotEmpty) ...[
+                  ConstrainedBox(constraints: const BoxConstraints(maxWidth: 6)),
                   GestureDetector(
-                    onTap: () {
+                    OnTap: () {
                       Clipboard.setData(ClipboardData(text: value));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Order reference copied to clipboard'),
-                          duration: Duration(seconds: 2),
-                          behavior: SnackBarBehavior.floating,
+                        Const SnackBar(
+                          Content: Text('Order reference copied to clipboard'),
+                          Duration: Duration(seconds: 2),
+                          Behavior: SnackBarBehavior.floating,
                         ),
                       );
                     },
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF22242B),
-                        borderRadius: BorderRadius.circular(4),
+                    Child: Container(
+                      Padding: const EdgeInsets.all(3),
+                      Decoration: BoxDecoration(
+                        Color: const Color(0xFF22242B),
+                        BorderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Icon(Icons.copy_rounded, size: 11, color: Color(0xFFA1A1AA)),
+                      Child: const Icon(Icons.copy_rounded, size: 11, color: Color(0xFFA1A1AA)),
                     ),
                   ),
                 ],
@@ -779,70 +807,70 @@ class _DetailRow extends StatelessWidget {
 }
 
 String _formatDay(DateTime dt) {
-  return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  Return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
 }
 
 String _formatTime(DateTime dt) {
-  return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  Return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 }
 
 String _providerLabel(AppI18n t, String provider) {
-  switch (provider.trim().toLowerCase()) {
-    case 'admin':
-      return t.t('admin');
-    case 'stripe':
-      return t.t('stripe');
-    case 'paypal':
-      return t.t('paypal');
-    case 'flutterwave':
-      return t.t('flutterwave');
-    case 'razorpay':
-      return t.t('razorpay');
-    case 'google_play':
-      return t.t('google_play');
-    case 'app_store':
-    case 'apple':
-      return t.t('apple_app_store');
-    default:
-      return provider.isEmpty ? 'Direct' : provider;
+  Switch (provider.trim().toLowerCase()) {
+    Case 'admin':
+      Return t.t('admin');
+    Case 'stripe':
+      Return t.t('stripe');
+    Case 'paypal':
+      Return t.t('paypal');
+    Case 'flutterwave':
+      Return t.t('flutterwave');
+    Case 'razorpay':
+      Return t.t('razorpay');
+    Case 'google_play':
+      Return t.t('google_play');
+    Case 'app_store':
+    Case 'apple':
+      Return t.t('apple_app_store');
+    Default:
+      Return provider.isEmpty ? 'Direct' : provider;
   }
 }
 
 class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.onRetry});
+  Const _ErrorState({required this.onRetry});
 
-  final Future<void> Function() onRetry;
+  Final Future<void> Function() onRetry;
 
   @override
   Widget build(BuildContext context) {
-    final t = AppI18n.of(context);
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF141518),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF26282E)),
+    Final t = AppI18n.of(context);
+    Return Container(
+      Padding: const EdgeInsets.all(18),
+      Decoration: BoxDecoration(
+        Color: const Color(0xFF141518),
+        BorderRadius: BorderRadius.circular(12),
+        Border: Border.all(color: const Color(0xFF26282E)),
       ),
-      child: Column(
-        children: [
-          const Icon(Icons.cloud_off_rounded, size: 30, color: Color(0xFF71717A)),
-          const SizedBox(height: 10),
+      Child: Column(
+        Children: [
+          Const Icon(Icons.cloud_off_rounded, size: 30, color: Color(0xFF71717A)),
+          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 10)),
           Text(
-            t.t('request_failed'),
-            style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w500),
+            T.t('request_failed'),
+            Style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w500),
           ),
-          const SizedBox(height: 14),
+          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 14)),
           SizedBox(
-            height: 38,
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: () => onRetry(),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF26282E),
-                foregroundColor: const Color(0xFFF4F4F5),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            Height: 38,
+            Width: double.infinity,
+            Child: FilledButton(
+              OnPressed: () => onRetry(),
+              Style: FilledButton.styleFrom(
+                BackgroundColor: const Color(0xFF26282E),
+                ForegroundColor: const Color(0xFFF4F4F5),
+                Shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              child: Text(t.t('retry'), style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+              Child: Text(t.t('retry'), style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
             ),
           ),
         ],
