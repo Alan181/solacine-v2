@@ -13,6 +13,8 @@ String providerLabel(AppI18n t, String provider) {
       return t.t('flutterwave');
     case 'razorpay':
       return t.t('razorpay');
+    case 'xendit':
+      return 'Xendit';
     default:
       return provider;
   }
@@ -47,7 +49,8 @@ class PaymentMethodsSheet extends StatelessWidget {
     required bool isIOS,
   }) {
     final webGateway = <String>[];
-    for (final p in const ['stripe', 'paypal', 'flutterwave', 'razorpay']) {
+    // Menambahkan 'xendit' ke dalam daftar web gateway yang didukung
+    for (final p in const ['stripe', 'paypal', 'flutterwave', 'razorpay', 'xendit']) {
       if (enabledProviders[p] == true) webGateway.add(p);
     }
 
@@ -347,7 +350,7 @@ class PaymentMethodsSheet extends StatelessWidget {
                           onTap: () => Navigator.of(context).pop('app_store'),
                         ),
 
-                      // ── Web Gateways: Stripe / Paypal / Flutterwave / Razorpay
+                      // ── Web Gateways: Stripe / Paypal / Flutterwave / Razorpay / Xendit
                       if (hasWebGateways)
                         ...enabledGateway.map((p) {
                           final icon = switch (p) {
@@ -355,6 +358,7 @@ class PaymentMethodsSheet extends StatelessWidget {
                             'paypal' => 'assets/images/payments/paypal.png',
                             'flutterwave' => 'assets/images/payments/flutterwave.png',
                             'razorpay' => 'assets/images/payments/razorpay.png',
+                            'xendit' => 'assets/images/daily_checkin_top_ic.png', // Menggunakan aset yang sudah ada
                             _ => null,
                           };
                           final subtitle = switch (p) {
@@ -370,13 +374,16 @@ class PaymentMethodsSheet extends StatelessWidget {
                             'flutterwave' => isArabic
                                 ? 'البطاقات والتحويل البنكي'
                                 : 'Cards & local payments',
+                            'xendit' => isArabic
+                                ? 'QRIS، الحسابات الافتراضية والمحافظ الإلكترونية'
+                                : 'QRIS, Virtual Accounts & E-Wallets',
                             _ => isArabic ? 'دفع آمن ومعتمد' : t.t('secure_payment'),
                           };
                           return WalletPaymentMethodTile(
                             title: providerLabel(t, p),
                             subtitle: subtitle,
                             iconAsset: icon,
-                            badgeText: (p == 'stripe' || p == 'paypal')
+                            badgeText: (p == 'stripe' || p == 'paypal' || p == 'xendit')
                                 ? (isArabic ? 'آمن' : 'Secure')
                                 : null,
                             onTap: () => Navigator.of(context).pop(p),
