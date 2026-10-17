@@ -15,6 +15,8 @@ String providerLabel(AppI18n t, String provider) {
       return t.t('razorpay');
     case 'xendit':
       return 'Xendit';
+    case 'duitku':
+      return 'Duitku';
     default:
       return provider;
   }
@@ -49,8 +51,8 @@ class PaymentMethodsSheet extends StatelessWidget {
     required bool isIOS,
   }) {
     final webGateway = <String>[];
-    // Menambahkan 'xendit' ke dalam daftar web gateway yang didukung
-    for (final p in const ['stripe', 'paypal', 'flutterwave', 'razorpay', 'xendit']) {
+    // Menambahkan 'duitku' ke dalam daftar web gateway yang didukung bersama xendit, dll.
+    for (final p in const ['stripe', 'paypal', 'flutterwave', 'razorpay', 'xendit', 'duitku']) {
       if (enabledProviders[p] == true) webGateway.add(p);
     }
 
@@ -350,7 +352,7 @@ class PaymentMethodsSheet extends StatelessWidget {
                           onTap: () => Navigator.of(context).pop('app_store'),
                         ),
 
-                      // ── Web Gateways: Stripe / Paypal / Flutterwave / Razorpay / Xendit
+                      // ── Web Gateways: Stripe / Paypal / Flutterwave / Razorpay / Xendit / Duitku
                       if (hasWebGateways)
                         ...enabledGateway.map((p) {
                           final icon = switch (p) {
@@ -358,7 +360,8 @@ class PaymentMethodsSheet extends StatelessWidget {
                             'paypal' => 'assets/images/payments/paypal.png',
                             'flutterwave' => 'assets/images/payments/flutterwave.png',
                             'razorpay' => 'assets/images/payments/razorpay.png',
-                            'xendit' => 'assets/images/daily_checkin_top_ic.png', // Menggunakan aset yang sudah ada
+                            'xendit' => 'assets/images/daily_checkin_top_ic.png',
+                            'duitku' => 'assets/images/daily_checkin_top_ic.png', // Menggunakan aset yang tersedia
                             _ => null,
                           };
                           final subtitle = switch (p) {
@@ -377,13 +380,16 @@ class PaymentMethodsSheet extends StatelessWidget {
                             'xendit' => isArabic
                                 ? 'QRIS، الحسابات الافتراضية والمحافظ الإلكترونية'
                                 : 'QRIS, Virtual Accounts & E-Wallets',
+                            'duitku' => isArabic
+                                ? 'QRIS، الحسابات الافتراضية، وم convenient QRIS'
+                                : 'QRIS, Virtual Accounts & Bank Transfer',
                             _ => isArabic ? 'دفع آمن ومعتمد' : t.t('secure_payment'),
                           };
                           return WalletPaymentMethodTile(
                             title: providerLabel(t, p),
                             subtitle: subtitle,
                             iconAsset: icon,
-                            badgeText: (p == 'stripe' || p == 'paypal' || p == 'xendit')
+                            badgeText: (p == 'stripe' || p == 'paypal' || p == 'xendit' || p == 'duitku')
                                 ? (isArabic ? 'آمن' : 'Secure')
                                 : null,
                             onTap: () => Navigator.of(context).pop(p),
