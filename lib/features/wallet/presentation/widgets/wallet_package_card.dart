@@ -12,10 +12,39 @@ class WalletPackageCard extends StatelessWidget {
   final CoinPackageDto pkg;
   final VoidCallback? onTap;
 
+  // Fungsi helper format harga dinamis (IDR vs mata uang lain)
+  String _formatPrice(num amount, String? currency) {
+    final curr = (currency == null || currency.isEmpty) ? 'IDR' : currency.toUpperCase();
+    
+    if (curr == 'IDR') {
+      final formattedNumber = amount.toInt().toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]}.',
+      );
+      return 'Rp $formattedNumber';
+    }
+
+    final symbol = curr == 'USD'
+        ? '\$'
+        : (curr == 'EUR'
+            ? '€'
+            : (curr == 'GBP'
+                ? '£'
+                : ''));
+    final formatted = amount.toDouble().toStringAsFixed(2);
+    if (symbol.isNotEmpty) {
+      return '$symbol$formatted';
+    }
+    return '$formatted $curr';
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppI18n.of(context);
-    final price = pkg.priceAmount.toDouble().toStringAsFixed(2);
+    
+    final currency = pkg.priceCurrency.isNotEmpty ? pkg.priceCurrency : 'IDR';
+    final price = _formatPrice(pkg.priceAmount, currency);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
@@ -57,7 +86,7 @@ class WalletPackageCard extends StatelessWidget {
                     border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                   ),
                   child: Text(
-                    pkg.priceCurrency,
+                    currency,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.70),
                       fontSize: 11,
@@ -124,15 +153,19 @@ class WalletPackageCard extends StatelessWidget {
               alignment: Alignment.center,
               child: Row(
                 children: [
-                  Text(
-                    price,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: Text(
+                      price,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 4),
                   Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.75), size: 20),
                 ],
               ),
