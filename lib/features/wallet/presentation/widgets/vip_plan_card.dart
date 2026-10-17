@@ -82,8 +82,18 @@ class _VipPlanCardState extends State<VipPlanCard> {
     return t.t('days', params: {'days': days.toString()});
   }
 
-  String _formatPrice(int amount, String currency) {
-    final cur = currency.toUpperCase();
+  // Fungsi helper pemformatan harga yang sudah mendukung IDR (Rp di depan tanpa desimal)
+  String _formatPrice(num amount, String? currency) {
+    final cur = (currency == null || currency.isEmpty) ? 'IDR' : currency.toUpperCase();
+    
+    if (cur == 'IDR') {
+      final formattedNumber = amount.toInt().toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (Match m) => '${m[1]}.',
+      );
+      return 'Rp $formattedNumber';
+    }
+
     final symbol = cur == 'USD'
         ? '\$'
         : (cur == 'EUR'
@@ -91,11 +101,11 @@ class _VipPlanCardState extends State<VipPlanCard> {
             : (cur == 'GBP'
                 ? '£'
                 : ''));
-    final formatted = amount.toStringAsFixed(2);
+    final formatted = amount.toDouble().toStringAsFixed(2);
     if (symbol.isNotEmpty) {
       return '$symbol$formatted';
     }
-    return '$formatted $currency';
+    return '$formatted $cur';
   }
 
   @override
@@ -103,8 +113,11 @@ class _VipPlanCardState extends State<VipPlanCard> {
     final t = AppI18n.of(context);
     final pkg = widget.pkg;
     final isSelected = widget.isSelected;
-    final currentPrice = _formatPrice(pkg.currentPriceAmount, pkg.priceCurrency);
-    final originalPrice = _formatPrice(pkg.originalPriceAmount, pkg.priceCurrency);
+    
+    final currency = pkg.priceCurrency.isNotEmpty ? pkg.priceCurrency : 'IDR';
+    final currentPrice = _formatPrice(pkg.currentPriceAmount, currency);
+    final originalPrice = _formatPrice(pkg.originalPriceAmount, currency);
+    
     final promoActive = pkg.promoActive && _secondsLeft > 0;
     final planLabel = _planLabel(t, pkg.durationDays);
     final titleText = t.t('membership_subscribe_to', params: {'plan': planLabel});
@@ -261,14 +274,18 @@ class _VipPlanCardState extends State<VipPlanCard> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text(
-                                currentPrice,
-                                style: const TextStyle(
-                                  color: Color(0xffffc107),
-                                  fontSize: 25,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.5,
-                                  height: 1.0,
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  currentPrice,
+                                  style: const TextStyle(
+                                    color: Color(0xffffc107),
+                                    fontSize: 22, // Disesuaikan agar ukuran teks nominal IDR pas
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.5,
+                                    height: 1.0,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 6),
