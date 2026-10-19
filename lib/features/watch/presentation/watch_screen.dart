@@ -1173,20 +1173,35 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         
         await c.setLooping(false);
 
+        // Pengaman Auto-Play Sempurna (Cegah lompat liar & eksekusi ganda)
+        bool hasTriggeredNext = false;
+
         c.addListener(() {
           if (!mounted || _disposed || opId != _videoOpId) return;
           final value = c?.value;
-          if (value != null && value.isInitialized && !value.isPlaying) {
-            if (value.position >= value.duration && value.duration > Duration.zero) {
-              final nextIndex = _index + 1;
-              if (nextIndex < _episodesTotal && _pageController.hasClients) {
-                _pageController.animateToPage(
-                  nextIndex,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              }
+          if (value == null || !value.isInitialized) return;
+
+          // Cek posisi sudah berada di ujung akhir video (sisa < 500ms)
+          final bool isAtEnd = value.position >= value.duration - const Duration(milliseconds: 500) 
+                               && value.duration > Duration.zero;
+
+          // Eksekusi hanya ketika video benar-benar habis selesai diputar
+          if (isAtEnd && !value.isPlaying && !hasTriggeredNext) {
+            hasTriggeredNext = true;
+            
+            final nextIndex = _index + 1;
+            if (nextIndex < _episodesTotal && _pageController.hasClients) {
+              _pageController.animateToPage(
+                nextIndex,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
             }
+          }
+          
+          // Reset kunci jika pengguna memutar ulang video ke awal/tengah
+          if (value.position < value.duration - const Duration(seconds: 2)) {
+            hasTriggeredNext = false;
           }
         });
 
