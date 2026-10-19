@@ -587,10 +587,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     }
 
     final idx = targetEpisodeNumber - 1;
-    if (_pageController.hasClients && (_pageController.page?.round() ?? _index) != idx) {
-      _pageController.jumpToPage(idx);
-    }
-    if (mounted) {
+    if (mounted && _index != idx) {
       setState(() {
         _index = idx;
       });
@@ -1156,7 +1153,14 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             if (value.position >= value.duration && value.duration > Duration.zero) {
               final nextEpNum = _currentEpisodeNumber + 1;
               if (nextEpNum <= _episodesTotal) {
-                _handleEpisodeChangeWithAds(nextEpNum);
+                final targetIdx = nextEpNum - 1;
+                if (_pageController.hasClients) {
+                  _pageController.animateToPage(
+                    targetIdx,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                }
               }
             }
           }
@@ -1968,7 +1972,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                     try {
                       _video?.pause();
                     } catch (_) {}
-                    // PERBAIKAN: Hapus parameter &episode=... agar backend otomatis melanjutkan ke episode terakhir
                     final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&from=reels';
                     context.go('/reels');
                     WidgetsBinding.instance.addPostFrameCallback((_) {
