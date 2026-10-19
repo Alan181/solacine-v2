@@ -548,6 +548,13 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   Future<void> _handleEpisodeChangeWithAds(int targetEpisodeNumber) async {
     if (widget.reelsPreview) return;
 
+    final idx = targetEpisodeNumber - 1;
+    if (mounted && _index != idx) {
+      setState(() {
+        _index = idx;
+      });
+    }
+
     final session = ref.read(authSessionProvider).valueOrNull;
     final expiresRaw = (session?.user?['membership_expires_at'] as String?)?.trim();
     final expiresAt = (expiresRaw == null || expiresRaw.isEmpty) ? null : DateTime.tryParse(expiresRaw)?.toLocal();
@@ -571,6 +578,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           if (mounted) {
             setState(() => _fullScreenAdOpen = false);
             
+            if (_pageController.hasClients && (_pageController.page?.round() ?? _index) != idx) {
+              _pageController.jumpToPage(idx);
+            }
+            
             try {
               if (_video != null && _video!.value.isInitialized) {
                 await _video!.play();
@@ -584,13 +595,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           setState(() => _fullScreenAdOpen = false);
         }
       }
-    }
-
-    final idx = targetEpisodeNumber - 1;
-    if (mounted && _index != idx) {
-      setState(() {
-        _index = idx;
-      });
     }
 
     try {
@@ -1154,12 +1158,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
               final nextEpNum = _currentEpisodeNumber + 1;
               if (nextEpNum <= _episodesTotal) {
                 final targetIdx = nextEpNum - 1;
-                if (_pageController.hasClients) {
-                  _pageController.animateToPage(
-                    targetIdx,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
+                if (_pageController.hasClients && _pageController.page?.round() != targetIdx) {
+                  _pageController.jumpToPage(targetIdx);
                 }
               }
             }
