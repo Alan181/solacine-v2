@@ -61,6 +61,13 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
   late PageController _pageController;
   var _index = 0;
+  
+  // Pelacak episode terakhir untuk mencegah eksekusi ganda
+  int? _lastProcessedEpisode;
+
+  // Variabel Sistem Frekuensi Interval Iklan (per 5 episode berpindah)
+  int _episodesSinceLastAd = 0;
+  final int _adFrequencyInterval = 5;
 
   VideoPlayerController? _video;
   var _videoReady = false;
@@ -547,6 +554,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
   Future<void> _handleEpisodeChangeWithAds(int targetEpisodeNumber) async {
     if (widget.reelsPreview) return;
+    
+    // Cegah pemrosesan berulang untuk nomor episode yang sama
+    if (_lastProcessedEpisode == targetEpisodeNumber) return;
+    _lastProcessedEpisode = targetEpisodeNumber;
 
     final idx = targetEpisodeNumber - 1;
     if (mounted && _index != idx) {
@@ -560,7 +571,17 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     final expiresAt = (expiresRaw == null || expiresRaw.isEmpty) ? null : DateTime.tryParse(expiresRaw)?.toLocal();
     final isVipUser = expiresAt != null && expiresAt.isAfter(DateTime.now());
 
-    if (!isVipUser && targetEpisodeNumber > 0 && targetEpisodeNumber % 3 == 0) {
+    // Sistem Interval Frekuensi Murni (Setiap 5 Episode berpindah)
+    bool shouldShowAd = false;
+    if (!isVipUser) {
+      _episodesSinceLastAd++;
+      if (_episodesSinceLastAd >= _adFrequencyInterval) {
+        shouldShowAd = true;
+        _episodesSinceLastAd = 0; // Reset counter setelah iklan muncul
+      }
+    }
+
+    if (shouldShowAd) {
       try {
         final cfg = ref.read(adsConfigProvider);
         final adsSvc = ref.read(adsServiceProvider);
@@ -803,6 +824,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       }
 
       final initial = widget.reelsPreview ? 0 : (_episodesTotal > 0 ? (activeNum - 1).clamp(0, _episodesTotal - 1) : 0);
+
+      _lastProcessedEpisode = activeNum;
 
       final old = _pageController;
       final next = PageController(initialPage: initial);
@@ -1155,12 +1178,13 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           final value = c?.value;
           if (value != null && value.isInitialized && !value.isPlaying) {
             if (value.position >= value.duration && value.duration > Duration.zero) {
-              final nextEpNum = _currentEpisodeNumber + 1;
-              if (nextEpNum <= _episodesTotal) {
-                final targetIdx = nextEpNum - 1;
-                if (_pageController.hasClients && _pageController.page?.round() != targetIdx) {
-                  _pageController.jumpToPage(targetIdx);
-                }
+              final nextIndex = _index + 1;
+              if (nextIndex < _episodesTotal && _pageController.hasClients) {
+                _pageController.animateToPage(
+                  nextIndex,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
               }
             }
           }
