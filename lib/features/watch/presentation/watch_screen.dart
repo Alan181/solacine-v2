@@ -1221,7 +1221,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             
             final currentEpNum = _currentEpisodeNumber;
             final maxEpisodes = _episodesTotal > 0 ? _episodesTotal : (_data?.episodesTotal ?? 0);
-            final totalEpisodes = total > 0 ? total : maxEpisodes;
+            final totalEpisodes = maxEpisodes;
             
             final bool isLastEpisode = maxEpisodes > 0 && currentEpNum >= maxEpisodes;
             final bool isLastPageIndex = _index >= totalEpisodes - 1;
