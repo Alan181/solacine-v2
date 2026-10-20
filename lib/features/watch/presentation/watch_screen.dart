@@ -474,12 +474,12 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
       if (!mounted) return;
 
-      // Dibungkus dengan Material(color: Colors.black, ...) agar tombol back & interaksi sentuh normal kembali
+      // Menggunakan Scaffold agar rute baru memiliki struktur root interaksi dan tombol back aman diklik
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => Material(
-            color: Colors.black,
-            child: WatchScreen(
+          pageBuilder: (context, animation, secondaryAnimation) => Scaffold(
+            backgroundColor: Colors.black,
+            body: WatchScreen(
               slug: targetSlug,
               title: targetTitle,
               fromReels: true,
@@ -1230,18 +1230,22 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           final value = c?.value;
           if (value == null || !value.isInitialized) return;
 
-          // Kondisi: Jika posisi video sudah mentok durasi ATAU sangat dekat dengan akhir
-          final bool isAtAbsoluteEnd = value.duration > Duration.zero && value.position >= value.duration;
-          final bool isNearEndPaused = value.duration > Duration.zero && 
-                                       value.position >= value.duration - const Duration(milliseconds: 1000) && 
-                                       !value.isPlaying;
+          // Pengaman validasi durasi agar tidak trigger prematur di awal
+          final bool isValidDuration = value.duration > const Duration(seconds: 1);
+          final bool isAtAbsoluteEnd = isValidDuration && value.position >= value.duration;
+          
+          // Ambang batas ketat 300ms terakhir atau benar-benar habis total di ujung episode terakhir
+          final bool isNearEndPaused = isValidDuration && 
+                                       value.position >= value.duration - const Duration(milliseconds: 300) && 
+                                       !value.isPlaying &&
+                                       value.position > Duration.zero;
 
           if ((isAtAbsoluteEnd || isNearEndPaused) && !hasTriggeredNext) {
             hasTriggeredNext = true;
             
             final currentEpNum = _currentEpisodeNumber;
             
-            // CEK MUTLAK: Jika sudah di episode terakhir, langsung panggil random series!
+            // CEK MUTLAK: Jika sudah di episode terakhir dan video habis, panggil random series!
             if (_index >= _episodesTotal - 1 || currentEpNum >= _episodesTotal) {
               _navigateToRandomSeries();
             } else {
