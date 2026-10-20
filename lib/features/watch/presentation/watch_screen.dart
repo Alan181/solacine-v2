@@ -1210,13 +1210,13 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           if (value == null || !value.isInitialized) return;
 
           final bool isValidDuration = value.duration > const Duration(seconds: 1);
-          final bool isAtAbsoluteEnd = isValidDuration && value.position >= value.duration;
-          final bool isNearEndPaused = isValidDuration && 
-                                       value.position >= value.duration - const Duration(milliseconds: 300) && 
-                                       !value.isPlaying &&
-                                       value.position > Duration.zero;
+          
+          // Pengaman ekstra peka (toleransi 1 detik terakhir atau selesai berhenti)
+          final bool isNearEnd = isValidDuration && 
+                                 (value.position >= value.duration - const Duration(seconds: 1) ||
+                                  (value.position >= value.duration - const Duration(milliseconds: 500) && !value.isPlaying));
 
-          if ((isAtAbsoluteEnd || isNearEndPaused) && !hasTriggeredNext) {
+          if (isNearEnd && !hasTriggeredNext) {
             hasTriggeredNext = true;
             
             final currentEpNum = _currentEpisodeNumber;
@@ -1240,7 +1240,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             }
           }
 
-          if (value.position < value.duration - const Duration(seconds: 2)) {
+          if (value.position < value.duration - const Duration(seconds: 3)) {
             hasTriggeredNext = false;
           }
         });
