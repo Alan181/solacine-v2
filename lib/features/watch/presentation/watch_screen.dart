@@ -1205,25 +1205,22 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           final value = c?.value;
           if (value == null || !value.isInitialized) return;
 
-          // Kondisi 1: Posisi sudah mendekati akhir (toleransi 1 detik)
-          final bool isNearEnd = value.duration > Duration.zero && 
-                                 value.position >= value.duration - const Duration(milliseconds: 1000);
+          // Kondisi: Jika posisi video sudah mentok durasi ATAU sangat dekat dengan akhir
+          final bool isAtAbsoluteEnd = value.duration > Duration.zero && value.position >= value.duration;
+          final bool isNearEndPaused = value.duration > Duration.zero && 
+                                       value.position >= value.duration - const Duration(milliseconds: 1000) && 
+                                       !value.isPlaying;
 
-          // Kondisi 2: Video selesai (posisi di ujung DAN isPlaying menjadi false, ATAU posisi sudah mentok durasi)
-          final bool videoFinished = (isNearEnd && !value.isPlaying) || 
-                                     (value.duration > Duration.zero && value.position >= value.duration);
-
-          if (videoFinished && !hasTriggeredNext) {
+          if ((isAtAbsoluteEnd || isNearEndPaused) && !hasTriggeredNext) {
             hasTriggeredNext = true;
             
             final currentEpNum = _currentEpisodeNumber;
             
-            // CEK UTAMA: Apakah ini episode terakhir berdasarkan index halaman ATAU nomor episode?
+            // CEK MUTLAK: Jika sudah di episode terakhir, langsung panggil random series!
             if (_index >= _episodesTotal - 1 || currentEpNum >= _episodesTotal) {
-              debugPrint('[WatchScreen] Episode terakhir habis! Memanggil random series...');
               _navigateToRandomSeries();
             } else {
-              // Jika belum episode terakhir, lanjut ke episode berikutnya
+              // Jika belum, lanjut ke episode berikutnya
               final nextIndex = _index + 1;
               if (nextIndex < _episodesTotal && _pageController.hasClients) {
                 _pageController.animateToPage(
@@ -1237,7 +1234,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             }
           }
 
-          // Reset pelindung jika video diputar ulang atau digeser mundur oleh pengguna
+          // Reset pelindung jika video diputar ulang atau digeser mundur
           if (value.position < value.duration - const Duration(seconds: 2)) {
             hasTriggeredNext = false;
           }
@@ -1944,144 +1941,155 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         body: Stack(
           children: [
             const ColoredBox(color: Colors.black),
-            PageView.builder(
-              controller: _pageController,
-              scrollDirection: Axis.vertical,
-              physics: widget.reelsPreview ? const NeverScrollableScrollPhysics() : null,
-              onPageChanged: (i) async {
-                if (widget.reelsPreview) return;
-
-                if (i >= totalEpisodes) {
-                  _navigateToRandomSeries();
-                  return;
+            NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                // Pengaman tambahan: Jika user berada di halaman terakhir dan mencoba swipe ke bawah lagi, langsung panggil random series
+                if (notification is ScrollEndNotification && _index >= totalEpisodes - 1) {
+                  if (_pageController.hasClients && _pageController.position.pixels >= _pageController.position.maxScrollExtent) {
+                    _navigateToRandomSeries();
+                  }
                 }
-
-                setState(() {
-                  _index = i;
-                });
-                final epNum = _episodeNumberForPageIndex(i);
-                await _handleEpisodeChangeWithAds(epNum);
+                return false;
               },
-              itemBuilder: (context, i) {
-                final epNum = _episodeNumberForPageIndex(i);
-                final ep = _episodesByNumber[epNum];
-                final isActive = i == _index;
-                final player = isActive ? _video : null;
-                final ready = isActive && _videoReady && player != null && player.value.isInitialized;
-                final isUnlocked = ep?.isUnlocked ?? false;
-                final hasVideo = isUnlocked && ((ep?.videoUrl.trim().isNotEmpty ?? false));
-                final unlock = data.unlock;
-                final cfg = ref.watch(adsConfigProvider);
-                final coinSystemEnabled = cfg?.monetization.coinSystemEnabled ?? true;
-                final allowVipUnlock = cfg?.monetization.episodeUnlockAllowVip ?? true;
-                final showVipUpsell = (!coinSystemEnabled) && allowVipUnlock && !isVipUser;
-                final allowAdsUnlock = coinSystemEnabled && unlock.method.trim().toLowerCase() != 'coins' && unlock.dailyAdLimit > 0;
-                final canUnlockByAd = allowAdsUnlock && unlock.adUnlocksToday < unlock.dailyAdLimit;
-                final unlockCost = unlock.cost;
-                final coinsEnabled = coinSystemEnabled && unlock.method.trim().toLowerCase().contains('coins');
-                final canUnlockByCoins = session != null && coinsEnabled && unlockCost > 0 && coinsBalance >= unlockCost;
-                final topPad = MediaQuery.of(context).viewPadding.top;
-                final bottomPad = MediaQuery.of(context).viewPadding.bottom;
-                final genresLine = series.genres.where((g) => g.trim().isNotEmpty).join(' • ');
-                final loadingEpisode = isActive && ep == null;
+              child: PageView.builder(
+                controller: _pageController,
+                scrollDirection: Axis.vertical,
+                physics: widget.reelsPreview ? const NeverScrollableScrollPhysics() : null,
+                onPageChanged: (i) async {
+                  if (widget.reelsPreview) return;
 
-                if (isActive && !isUnlocked && ep != null && _autoUnlockEnabled && canUnlockByCoins && !_autoUnlockTriedEpisodes.contains(epNum)) {
-                  _autoUnlockTriedEpisodes.add(epNum);
-                  Future.microtask(() => _unlockEpisode(ep: ep, method: 'coins'));
-                }
+                  if (i >= totalEpisodes || i >= _episodesTotal) {
+                    _navigateToRandomSeries();
+                    return;
+                  }
 
-                return WatchEpisodePageItem(
-                  epNum: epNum,
-                  ep: ep,
-                  isActive: isActive,
-                  player: player,
-                  ready: ready,
-                  isUnlocked: isUnlocked,
-                  hasVideo: hasVideo,
-                  series: series,
-                  cfg: cfg,
-                  coinSystemEnabled: coinSystemEnabled,
-                  allowVipUnlock: allowVipUnlock,
-                  showVipUpsell: showVipUpsell,
-                  allowAdsUnlock: allowAdsUnlock,
-                  canUnlockByAd: canUnlockByAd,
-                  unlockCost: unlockCost,
-                  coinsEnabled: coinsEnabled,
-                  canUnlockByCoins: canUnlockByCoins,
-                  topPad: topPad,
-                  bottomPad: bottomPad,
-                  genresLine: genresLine,
-                  loadingEpisode: loadingEpisode,
-                  isVipUser: isVipUser,
-                  coinsBalance: coinsBalance,
-                  totalEpisodes: totalEpisodes,
-                  controlsVisible: _controlsVisible,
-                  videoLoading: _videoLoading,
-                  videoError: _videoError,
-                  activeVideoUrl: _activeVideoUrl,
-                  showLikeBurst: _showLikeBurst,
-                  likeBurstPos: _likeBurstPos,
-                  likeBurstAnimation: _likeBurst,
-                  likeBurstScale: _likeBurstScale,
-                  likeBurstOpacity: _likeBurstOpacity,
-                  rewardShakeAnimation: _rewardShake,
-                  rewardDismissed: _rewardDismissed,
-                  showSwipeGuide: _showSwipeGuide,
-                  guideShakeAnimation: _guideShake,
-                  isLiked: _isLiked,
-                  likesCount: _likesCount,
-                  autoUnlockEnabled: _autoUnlockEnabled,
-                  unlocking: _unlocking,
-                  adUnlocksToday: unlock.adUnlocksToday,
-                  dailyAdLimit: unlock.dailyAdLimit,
-                  qualityLabel: (dynamic e, dynamic tr) => _qualityLabel(e as WatchEpisodeDto, tr as AppI18n),
-                  fmtDuration: _fmt,
-                  ageRatingAsset: _ageRatingAsset,
-                  coinUnit: t.t('coin_unit'),
-                  bg: bg,
-                  reelsPreview: widget.reelsPreview,
-                  onTap: _onScreenTap,
-                  onDoubleTapDown: (d) => _lastDoubleTapLocalPos = d.localPosition,
-                  onDoubleTap: () => _onDoubleTapLike(_lastDoubleTapLocalPos),
-                  onToggleControls: _toggleControls,
-                  onSafePopOrHome: _safePopOrHome,
-                  onToggleLike: _toggleLike,
-                  onOpenEpisodesSheet: _openEpisodesSheet,
-                  onOpenMoreSheet: () => _openMoreSheet(ep),
-                  onOpenSeriesInfo: _openSeriesInfoSheet,
-                  onWatchNow: () {
-                    final slug = series.slug.trim();
-                    if (slug.isEmpty) return;
-                    try {
-                      _video?.pause();
-                    } catch (_) {}
-                    final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&from=reels';
-                    context.go('/reels');
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (context.mounted) {
-                        context.push(target);
-                      }
-                    });
-                  },
-                  onTapReward: () => _pauseVideoAndPush('/rewards'),
-                  onDismissReward: () => setState(() => _rewardDismissed = true),
-                  onDismissSwipeGuide: _dismissSwipeGuide,
-                  onRetryVideo: () => _startEpisodeNumber(epNum),
-                  onOpenQualitySheet: (dynamic e) => _openQualitySheet(e as WatchEpisodeDto),
-                  onPauseAndPushMembership: () => _pauseVideoAndPush('/membership'),
-                  onRecharge: () => _pauseVideoAndPush('/recharge'),
-                  onUnlockWithCoins: ep == null ? () {} : () => _unlockEpisode(ep: ep, method: 'coins'),
-                  onUnlockWithAd: ep == null ? () {} : () => _unlockEpisodeByWatchingAd(ep: ep, isVipUser: isVipUser),
-                  onSetAutoUnlock: _setAutoUnlockEnabled,
-                  paywallAnimBuilder: ({required int episodeNumber, required Widget child}) => _buildPaywallPop(
-                    episodeNumber: episodeNumber,
-                    child: child,
-                  ),
-                  episodeNumber: epNum,
-                  onTogglePlayback: _onCenterPlayPressed,
-                );
-              },
-              itemCount: widget.reelsPreview ? 1 : totalEpisodes,
+                  setState(() {
+                    _index = i;
+                  });
+                  final epNum = _episodeNumberForPageIndex(i);
+                  await _handleEpisodeChangeWithAds(epNum);
+                },
+                itemBuilder: (context, i) {
+                  final epNum = _episodeNumberForPageIndex(i);
+                  final ep = _episodesByNumber[epNum];
+                  final isActive = i == _index;
+                  final player = isActive ? _video : null;
+                  final ready = isActive && _videoReady && player != null && player.value.isInitialized;
+                  final isUnlocked = ep?.isUnlocked ?? false;
+                  final hasVideo = isUnlocked && ((ep?.videoUrl.trim().isNotEmpty ?? false));
+                  final unlock = data.unlock;
+                  final cfg = ref.watch(adsConfigProvider);
+                  final coinSystemEnabled = cfg?.monetization.coinSystemEnabled ?? true;
+                  final allowVipUnlock = cfg?.monetization.episodeUnlockAllowVip ?? true;
+                  final showVipUpsell = (!coinSystemEnabled) && allowVipUnlock && !isVipUser;
+                  final allowAdsUnlock = coinSystemEnabled && unlock.method.trim().toLowerCase() != 'coins' && unlock.dailyAdLimit > 0;
+                  final canUnlockByAd = allowAdsUnlock && unlock.adUnlocksToday < unlock.dailyAdLimit;
+                  final unlockCost = unlock.cost;
+                  final coinsEnabled = coinSystemEnabled && unlock.method.trim().toLowerCase().contains('coins');
+                  final canUnlockByCoins = session != null && coinsEnabled && unlockCost > 0 && coinsBalance >= unlockCost;
+                  final topPad = MediaQuery.of(context).viewPadding.top;
+                  final bottomPad = MediaQuery.of(context).viewPadding.bottom;
+                  final genresLine = series.genres.where((g) => g.trim().isNotEmpty).join(' • ');
+                  final loadingEpisode = isActive && ep == null;
+
+                  if (isActive && !isUnlocked && ep != null && _autoUnlockEnabled && canUnlockByCoins && !_autoUnlockTriedEpisodes.contains(epNum)) {
+                    _autoUnlockTriedEpisodes.add(epNum);
+                    Future.microtask(() => _unlockEpisode(ep: ep, method: 'coins'));
+                  }
+
+                  return WatchEpisodePageItem(
+                    epNum: epNum,
+                    ep: ep,
+                    isActive: isActive,
+                    player: player,
+                    ready: ready,
+                    isUnlocked: isUnlocked,
+                    hasVideo: hasVideo,
+                    series: series,
+                    cfg: cfg,
+                    coinSystemEnabled: coinSystemEnabled,
+                    allowVipUnlock: allowVipUnlock,
+                    showVipUpsell: showVipUpsell,
+                    allowAdsUnlock: allowAdsUnlock,
+                    canUnlockByAd: canUnlockByAd,
+                    unlockCost: unlockCost,
+                    coinsEnabled: coinsEnabled,
+                    canUnlockByCoins: canUnlockByCoins,
+                    topPad: topPad,
+                    bottomPad: bottomPad,
+                    genresLine: genresLine,
+                    loadingEpisode: loadingEpisode,
+                    isVipUser: isVipUser,
+                    coinsBalance: coinsBalance,
+                    totalEpisodes: totalEpisodes,
+                    controlsVisible: _controlsVisible,
+                    videoLoading: _videoLoading,
+                    videoError: _videoError,
+                    activeVideoUrl: _activeVideoUrl,
+                    showLikeBurst: _showLikeBurst,
+                    likeBurstPos: _likeBurstPos,
+                    likeBurstAnimation: _likeBurst,
+                    likeBurstScale: _likeBurstScale,
+                    likeBurstOpacity: _likeBurstOpacity,
+                    rewardShakeAnimation: _rewardShake,
+                    rewardDismissed: _rewardDismissed,
+                    showSwipeGuide: _showSwipeGuide,
+                    guideShakeAnimation: _guideShake,
+                    isLiked: _isLiked,
+                    likesCount: _likesCount,
+                    autoUnlockEnabled: _autoUnlockEnabled,
+                    unlocking: _unlocking,
+                    adUnlocksToday: unlock.adUnlocksToday,
+                    dailyAdLimit: unlock.dailyAdLimit,
+                    qualityLabel: (dynamic e, dynamic tr) => _qualityLabel(e as WatchEpisodeDto, tr as AppI18n),
+                    fmtDuration: _fmt,
+                    ageRatingAsset: _ageRatingAsset,
+                    coinUnit: t.t('coin_unit'),
+                    bg: bg,
+                    reelsPreview: widget.reelsPreview,
+                    onTap: _onScreenTap,
+                    onDoubleTapDown: (d) => _lastDoubleTapLocalPos = d.localPosition,
+                    onDoubleTap: () => _onDoubleTapLike(_lastDoubleTapLocalPos),
+                    onToggleControls: _toggleControls,
+                    onSafePopOrHome: _safePopOrHome,
+                    onToggleLike: _toggleLike,
+                    onOpenEpisodesSheet: _openEpisodesSheet,
+                    onOpenMoreSheet: () => _openMoreSheet(ep),
+                    onOpenSeriesInfo: _openSeriesInfoSheet,
+                    onWatchNow: () {
+                      final slug = series.slug.trim();
+                      if (slug.isEmpty) return;
+                      try {
+                        _video?.pause();
+                      } catch (_) {}
+                      final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&from=reels';
+                      context.go('/reels');
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (context.mounted) {
+                          context.push(target);
+                        }
+                      });
+                    },
+                    onTapReward: () => _pauseVideoAndPush('/rewards'),
+                    onDismissReward: () => setState(() => _rewardDismissed = true),
+                    onDismissSwipeGuide: _dismissSwipeGuide,
+                    onRetryVideo: () => _startEpisodeNumber(epNum),
+                    onOpenQualitySheet: (dynamic e) => _openQualitySheet(e as WatchEpisodeDto),
+                    onPauseAndPushMembership: () => _pauseVideoAndPush('/membership'),
+                    onRecharge: () => _pauseVideoAndPush('/recharge'),
+                    onUnlockWithCoins: ep == null ? () {} : () => _unlockEpisode(ep: ep, method: 'coins'),
+                    onUnlockWithAd: ep == null ? () {} : () => _unlockEpisodeByWatchingAd(ep: ep, isVipUser: isVipUser),
+                    onSetAutoUnlock: _setAutoUnlockEnabled,
+                    paywallAnimBuilder: ({required int episodeNumber, required Widget child}) => _buildPaywallPop(
+                      episodeNumber: episodeNumber,
+                      child: child,
+                    ),
+                    episodeNumber: epNum,
+                    onTogglePlayback: _onCenterPlayPressed,
+                  );
+                },
+                itemCount: widget.reelsPreview ? 1 : totalEpisodes,
+              ),
             ),
             if ((_exitInterstitialBlockedUI || _fullScreenAdOpen) && _activeVastAd == null)
               Positioned.fill(
