@@ -474,8 +474,31 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
       if (!mounted) return;
 
-      final targetRoute = '/watch/$targetSlug?title=${Uri.encodeComponent(targetTitle)}&from=reels';
-      context.go(targetRoute);
+      // Menggunakan custom PageRouteBuilder dengan efek slide vertical dari bawah ke atas
+      // agar tampak seperti auto-swipe ke film baru
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => WatchScreen(
+            slug: targetSlug,
+            title: targetTitle,
+            fromReels: true,
+          ),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(0.0, 1.0); // Masuk dari bawah
+            const end = Offset.zero;
+            const curve = Curves.easeInOutCubic;
+            
+            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            var offsetAnimation = animation.drive(tween);
+
+            return SlideTransition(
+              position: offsetAnimation,
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 400),
+        ),
+      );
     } catch (e) {
       if (mounted) {
         context.go('/reels');
