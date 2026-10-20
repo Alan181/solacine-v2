@@ -62,10 +62,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   late PageController _pageController;
   var _index = 0;
   
-  // Pelacak episode terakhir untuk mencegah eksekusi ganda
   int? _lastProcessedEpisode;
-
-  // Variabel Sistem Frekuensi Interval Iklan (per 5 episode berpindah)
   int _episodesSinceLastAd = 0;
   final int _adFrequencyInterval = 5;
 
@@ -114,6 +111,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   final Set<int> _loadedPages = <int>{};
   var _loadingEpisodesPage = false;
   var _inModalSheet = false;
+  var _isNavigatingRandom = false;
 
   @override
   void initState() {
@@ -457,14 +455,20 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   }
 
   Future<void> _navigateToRandomSeries() async {
+    if (_isNavigatingRandom) return;
+    _isNavigatingRandom = true;
+
     try {
       try {
         await _video?.pause();
+        _video?.dispose();
       } catch (_) {}
+      _video = null;
 
       final randomData = await ref.read(watchApiProvider).getRandomSeries(currentSlug: widget.slug);
       
       if (randomData == null || randomData.slug.isEmpty) {
+        _isNavigatingRandom = false;
         if (mounted) context.go('/reels');
         return;
       }
@@ -476,12 +480,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
       final targetPath = '/watch/$targetSlug?title=${Uri.encodeComponent(targetTitle)}&from=reels';
       
-      if (GoRouter.of(context).canPop()) {
-        context.pushReplacement(targetPath);
-      } else {
-        context.go(targetPath);
-      }
+      // Menggunakan push() agar riwayat stack tersimpan dan tombol kembali (back) aktif berfungsi normal
+      context.push(targetPath);
     } catch (e) {
+      _isNavigatingRandom = false;
       if (mounted) {
         context.go('/reels');
       }
@@ -1209,26 +1211,25 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           final value = c?.value;
           if (value == null || !value.isInitialized) return;
 
-          final bool isValidDuration = value.duration > const Duration(seconds: 1);
+          final position = value.position;
+          final duration = value.duration;
           
-          // Pengaman ekstra peka (toleransi 1 detik terakhir atau selesai berhenti)
-          final bool isNearEnd = isValidDuration && 
-                                 (value.position >= value.duration - const Duration(seconds: 1) ||
-                                  (value.position >= value.duration - const Duration(milliseconds: 500) && !value.isPlaying));
+          if (duration.inSeconds < 1) return;
 
-          if (isNearEnd && !hasTriggeredNext) {
+          final bool isFinished = (position >= duration) || 
+                                 (!value.isPlaying && position >= duration - const Duration(seconds: 3));
+
+          if (isFinished && !hasTriggeredNext) {
             hasTriggeredNext = true;
             
             final currentEpNum = _currentEpisodeNumber;
             final maxEpisodes = _episodesTotal > 0 ? _episodesTotal : (_data?.episodesTotal ?? 0);
             final nextEpNum = currentEpNum + 1;
 
-            // KUNCI UTAMA: Cek apakah episode berikutnya ada secara mutlak (berdasarkan total episodes API atau map lokal)
             final bool hasNextEpisode = (maxEpisodes > 0 && nextEpNum <= maxEpisodes) || 
                                         _episodesByNumber.containsKey(nextEpNum);
 
             if (hasNextEpisode && _index < (maxEpisodes > 0 ? maxEpisodes - 1 : _index + 1)) {
-              // Jika episode berikutnya masih ada, geser ke halaman/episode selanjutnya
               final nextIndex = _index + 1;
               if (_pageController.hasClients) {
                 _pageController.animateToPage(
@@ -1238,12 +1239,20 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                 );
               }
             } else {
-              // Jika sudah mencapai episode terakhir, langsung panggil fungsi film acak
-              _navigateToRandomSeries();
+              final total = _episodesTotal > 0 ? _episodesTotal : maxEpisodes;
+              if (total > 0 && _pageController.hasClients) {
+                _pageController.animateToPage(
+                  total,
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeInOut,
+                );
+              } else {
+                _navigateToRandomSeries();
+              }
             }
           }
 
-          if (value.position < value.duration - const Duration(seconds: 3)) {
+          if (position < duration - const Duration(seconds: 4)) {
             hasTriggeredNext = false;
           }
         });
@@ -1938,6 +1947,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       );
     }
 
+    final pageViewItemCount = widget.reelsPreview ? 1 : (totalEpisodes + 1);
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -1951,10 +1962,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             const ColoredBox(color: Colors.black),
             NotificationListener<ScrollNotification>(
               onNotification: (notification) {
-                if (notification is ScrollEndNotification && totalEpisodes > 0 && _index >= totalEpisodes - 1) {
-                  if (_pageController.hasClients && _pageController.position.pixels >= _pageController.position.maxScrollExtent) {
-                    _navigateToRandomSeries();
-                  }
+                if (notification is ScrollEndNotification && totalEpisodes > 0 && _index >= totalEpisodes) {
+                  _navigateToRandomSeries();
                 }
                 return false;
               },
@@ -1966,6 +1975,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                   if (widget.reelsPreview) return;
 
                   if (totalEpisodes > 0 && i >= totalEpisodes) {
+                    try {
+                      _video?.pause();
+                    } catch (_) {}
                     _navigateToRandomSeries();
                     return;
                   }
@@ -1977,6 +1989,22 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                   await _handleEpisodeChangeWithAds(epNum);
                 },
                 itemBuilder: (context, i) {
+                  if (!widget.reelsPreview && i >= totalEpisodes) {
+                    return Container(
+                      color: Colors.black,
+                      child: const Center(
+                        child: SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
                   final epNum = _episodeNumberForPageIndex(i);
                   final ep = _episodesByNumber[epNum];
                   final isActive = i == _index;
@@ -2095,7 +2123,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                     onTogglePlayback: _onCenterPlayPressed,
                   );
                 },
-                itemCount: widget.reelsPreview ? 1 : totalEpisodes,
+                itemCount: pageViewItemCount,
               ),
             ),
             if ((_exitInterstitialBlockedUI || _fullScreenAdOpen) && _activeVastAd == null)
