@@ -1197,7 +1197,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         await c.setPlaybackSpeed(_playbackSpeed);
         await c.setLooping(false);
 
-        // Pelindung agar eksekusi transisi hanya terpanggil sekali ketika video habis di ujung
+        // Pelindung ganda agar transisi terpanggil akurat saat video habis di ujung
         bool hasTriggeredNext = false;
 
         c.addListener(() {
@@ -1205,17 +1205,22 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           final value = c?.value;
           if (value == null || !value.isInitialized) return;
 
-          // Deteksi jika video sudah mencapai ujung (toleransi 400 milidetik sebelum durasi habis)
-          final bool isAtEnd = value.position >= value.duration - const Duration(milliseconds: 400) 
-                               && value.duration > Duration.zero;
+          // Kondisi 1: Posisi sudah mendekati akhir (toleransi 1 detik)
+          final bool isNearEnd = value.duration > Duration.zero && 
+                                 value.position >= value.duration - const Duration(milliseconds: 1000);
 
-          if (isAtEnd && !hasTriggeredNext) {
+          // Kondisi 2: Video selesai (posisi di ujung DAN isPlaying menjadi false, ATAU posisi sudah mentok durasi)
+          final bool videoFinished = (isNearEnd && !value.isPlaying) || 
+                                     (value.duration > Duration.zero && value.position >= value.duration);
+
+          if (videoFinished && !hasTriggeredNext) {
             hasTriggeredNext = true;
             
             final currentEpNum = _currentEpisodeNumber;
             
-            // Jika sudah di episode terakhir, langsung panggil random series!
-            if (currentEpNum >= _episodesTotal) {
+            // CEK UTAMA: Apakah ini episode terakhir berdasarkan index halaman ATAU nomor episode?
+            if (_index >= _episodesTotal - 1 || currentEpNum >= _episodesTotal) {
+              debugPrint('[WatchScreen] Episode terakhir habis! Memanggil random series...');
               _navigateToRandomSeries();
             } else {
               // Jika belum episode terakhir, lanjut ke episode berikutnya
@@ -1233,7 +1238,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           }
 
           // Reset pelindung jika video diputar ulang atau digeser mundur oleh pengguna
-          if (value.position < value.duration - const Duration(seconds: 1)) {
+          if (value.position < value.duration - const Duration(seconds: 2)) {
             hasTriggeredNext = false;
           }
         });
@@ -2011,7 +2016,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                   coinsBalance: coinsBalance,
                   totalEpisodes: totalEpisodes,
                   controlsVisible: _controlsVisible,
-      videoLoading: _videoLoading,
+                  videoLoading: _videoLoading,
                   videoError: _videoError,
                   activeVideoUrl: _activeVideoUrl,
                   showLikeBurst: _showLikeBurst,
