@@ -474,14 +474,16 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
       if (!mounted) return;
 
-      // Menggunakan custom PageRouteBuilder dengan efek slide vertical dari bawah ke atas
-      // agar tampak seperti auto-swipe ke film baru
+      // Dibungkus dengan Material(color: Colors.black, ...) agar tombol back & interaksi sentuh normal kembali
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => WatchScreen(
-            slug: targetSlug,
-            title: targetTitle,
-            fromReels: true,
+          pageBuilder: (context, animation, secondaryAnimation) => Material(
+            color: Colors.black,
+            child: WatchScreen(
+              slug: targetSlug,
+              title: targetTitle,
+              fromReels: true,
+            ),
           ),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             const begin = Offset(0.0, 1.0); // Masuk dari bawah
