@@ -456,6 +456,34 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     router.go('/reels');
   }
 
+  Future<void> _navigateToRandomSeries() async {
+    try {
+      try {
+        await _video?.pause();
+      } catch (_) {}
+
+      // Mengambil data rekomendasi/serial acak dari backend API
+      final randomData = await ref.read(watchApiProvider).getRandomSeries(currentSlug: widget.slug);
+      
+      if (randomData == null || randomData.slug.isEmpty) {
+        if (mounted) context.go('/reels');
+        return;
+      }
+
+      final targetSlug = randomData.slug;
+      final targetTitle = randomData.title;
+
+      if (!mounted) return;
+
+      final targetRoute = '/watch/$targetSlug?title=${Uri.encodeComponent(targetTitle)}&from=reels';
+      context.go(targetRoute);
+    } catch (e) {
+      if (mounted) {
+        context.go('/reels');
+      }
+    }
+  }
+
   Future<void> _showExitInterstitialAndLeave({required bool isVipUser}) async {
     try {
       await _video?.pause();
@@ -555,7 +583,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   Future<void> _handleEpisodeChangeWithAds(int targetEpisodeNumber) async {
     if (widget.reelsPreview) return;
     
-    // Cegah pemrosesan berulang untuk nomor episode yang sama
     if (_lastProcessedEpisode == targetEpisodeNumber) return;
     _lastProcessedEpisode = targetEpisodeNumber;
 
@@ -571,13 +598,12 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     final expiresAt = (expiresRaw == null || expiresRaw.isEmpty) ? null : DateTime.tryParse(expiresRaw)?.toLocal();
     final isVipUser = expiresAt != null && expiresAt.isAfter(DateTime.now());
 
-    // Sistem Interval Frekuensi Murni (Setiap 5 Episode berpindah)
     bool shouldShowAd = false;
     if (!isVipUser) {
       _episodesSinceLastAd++;
       if (_episodesSinceLastAd >= _adFrequencyInterval) {
         shouldShowAd = true;
-        _episodesSinceLastAd = 0; // Reset counter setelah iklan muncul
+        _episodesSinceLastAd = 0;
       }
     }
 
@@ -1190,12 +1216,18 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             hasTriggeredNext = true;
             
             final nextIndex = _index + 1;
-            if (nextIndex < _episodesTotal && _pageController.hasClients) {
-              _pageController.animateToPage(
-                nextIndex,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
+            
+            // Jika sudah mencapai episode terakhir, arahkan ke film lain secara acak!
+            if (nextIndex >= _episodesTotal) {
+              _navigateToRandomSeries();
+            } else {
+              if (nextIndex < _episodesTotal && _pageController.hasClients) {
+                _pageController.animateToPage(
+                  nextIndex,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              }
             }
           }
           
