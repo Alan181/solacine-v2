@@ -462,7 +462,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         await _video?.pause();
       } catch (_) {}
 
-      // Mengambil data rekomendasi/serial acak dari backend API
       final randomData = await ref.read(watchApiProvider).getRandomSeries(currentSlug: widget.slug);
       
       if (randomData == null || randomData.slug.isEmpty) {
@@ -1196,10 +1195,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           return;
         }
         await c.setPlaybackSpeed(_playbackSpeed);
-        
         await c.setLooping(false);
 
-        // Pengaman Auto-Play Sempurna (Cegah lompat liar & eksekusi ganda)
+        // Listener video murni untuk menggeser ke episode berikutnya secara mulus
         bool hasTriggeredNext = false;
 
         c.addListener(() {
@@ -1207,31 +1205,25 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           final value = c?.value;
           if (value == null || !value.isInitialized) return;
 
-          // Cek posisi sudah berada di ujung akhir video (sisa < 500ms)
           final bool isAtEnd = value.position >= value.duration - const Duration(milliseconds: 500) 
                                && value.duration > Duration.zero;
 
-          // Eksekusi hanya ketika video benar-benar habis selesai diputar
           if (isAtEnd && !value.isPlaying && !hasTriggeredNext) {
             hasTriggeredNext = true;
             
             final nextIndex = _index + 1;
-            
-            // Jika sudah mencapai episode terakhir, arahkan ke film lain secara acak!
-            if (nextIndex >= _episodesTotal) {
+            if (nextIndex < _episodesTotal && _pageController.hasClients) {
+              _pageController.animateToPage(
+                nextIndex,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            } else if (nextIndex >= _episodesTotal) {
+              // Jika sudah di episode ujung dan habis, langsung panggil random series!
               _navigateToRandomSeries();
-            } else {
-              if (nextIndex < _episodesTotal && _pageController.hasClients) {
-                _pageController.animateToPage(
-                  nextIndex,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              }
             }
           }
           
-          // Reset kunci jika pengguna memutar ulang video ke awal/tengah
           if (value.position < value.duration - const Duration(seconds: 2)) {
             hasTriggeredNext = false;
           }
@@ -1944,6 +1936,13 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
               physics: widget.reelsPreview ? const NeverScrollableScrollPhysics() : null,
               onPageChanged: (i) async {
                 if (widget.reelsPreview) return;
+
+                // Jika pengguna melewati episode terakhir (swipe atau auto-play berlebih), lompat ke series acak!
+                if (i >= totalEpisodes) {
+                  _navigateToRandomSeries();
+                  return;
+                }
+
                 setState(() {
                   _index = i;
                 });
