@@ -165,6 +165,20 @@ class WatchDataDto {
   }
 }
 
+// DTO sederhana untuk menampung data serial acak
+class RandomSeriesDto {
+  const RandomSeriesDto({required this.slug, required this.title});
+  final String slug;
+  final String title;
+
+  factory RandomSeriesDto.fromJson(Map<String, dynamic> json) {
+    return RandomSeriesDto(
+      slug: (json['slug'] as String?) ?? '',
+      title: (json['title'] as String?) ?? '',
+    );
+  }
+}
+
 class WatchApi {
   WatchApi(this._dio);
 
@@ -212,6 +226,23 @@ class WatchApi {
     final map = res.data ?? const <String, dynamic>{};
     if (map['status'] != true) {
       throw Exception((map['message'] as String?) ?? 'Request failed');
+    }
+  }
+
+  // TAMBAHAN BARU: Fungsi untuk mengambil data serial acak untuk fitur auto-switch film
+  Future<RandomSeriesDto?> getRandomSeries({required String currentSlug}) async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/v1/series/random',
+        queryParameters: {'exclude': currentSlug},
+      );
+      final map = res.data ?? const <String, dynamic>{};
+      if (map['status'] != true) return null;
+      final data = (map['data'] as Map?)?.cast<String, dynamic>();
+      if (data == null) return null;
+      return RandomSeriesDto.fromJson(data);
+    } catch (_) {
+      return null;
     }
   }
 }
