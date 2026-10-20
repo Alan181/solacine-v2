@@ -474,33 +474,15 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
       if (!mounted) return;
 
-      // Menggunakan Scaffold agar rute baru memiliki struktur root interaksi dan tombol back aman diklik
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => Scaffold(
-            backgroundColor: Colors.black,
-            body: WatchScreen(
-              slug: targetSlug,
-              title: targetTitle,
-              fromReels: true,
-            ),
-          ),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const begin = Offset(0.0, 1.0); // Masuk dari bawah
-            const end = Offset.zero;
-            const curve = Curves.easeInOutCubic;
-            
-            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-            var offsetAnimation = animation.drive(tween);
-
-            return SlideTransition(
-              position: offsetAnimation,
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 400),
-        ),
-      );
+      // Menggunakan GoRouter agar rute baru tetap berada di dalam manajemen router 
+      // dan tombol kembali (back) di pojok kiri atas tetap berfungsi sempurna.
+      final targetPath = '/watch/$targetSlug?title=${Uri.encodeComponent(targetTitle)}&from=reels';
+      
+      if (GoRouter.of(context).canPop()) {
+        context.pushReplacement(targetPath);
+      } else {
+        context.go(targetPath);
+      }
     } catch (e) {
       if (mounted) {
         context.go('/reels');
@@ -1222,7 +1204,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         await c.setPlaybackSpeed(_playbackSpeed);
         await c.setLooping(false);
 
-        // Pelindung ganda agar transisi terpanggil akurat saat video habis di ujung
         bool hasTriggeredNext = false;
 
         c.addListener(() {
@@ -1230,11 +1211,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           final value = c?.value;
           if (value == null || !value.isInitialized) return;
 
-          // Pengaman validasi durasi agar tidak trigger prematur di awal
           final bool isValidDuration = value.duration > const Duration(seconds: 1);
           final bool isAtAbsoluteEnd = isValidDuration && value.position >= value.duration;
-          
-          // Ambang batas ketat 300ms terakhir atau benar-benar habis total
           final bool isNearEndPaused = isValidDuration && 
                                        value.position >= value.duration - const Duration(milliseconds: 300) && 
                                        !value.isPlaying &&
@@ -1246,25 +1224,20 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             final currentEpNum = _currentEpisodeNumber;
             final maxEpisodes = _episodesTotal > 0 ? _episodesTotal : (_data?.episodesTotal ?? 0);
             
-            // CEK MUTLAK: Hanya panggil random series jika nomor episode saat ini SUDAH SAMA DENGAN total episode (misal: 12 dari 12)
-            if (currentEpNum >= maxEpisodes && maxEpisodes > 0) {
-              _navigateToRandomSeries();
-            } else {
-              // Jika belum (misal baru habis ep 11 dari 12), WAJIB lanjut ke episode berikutnya (ep 12)
+            if (maxEpisodes > 0 && currentEpNum < maxEpisodes) {
               final nextIndex = _index + 1;
-              if ((maxEpisodes <= 0 || nextIndex < maxEpisodes) && _pageController.hasClients) {
+              if (_pageController.hasClients) {
                 _pageController.animateToPage(
                   nextIndex,
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
                 );
-              } else {
-                _navigateToRandomSeries();
               }
+            } else {
+              _navigateToRandomSeries();
             }
           }
 
-          // Reset pelindung jika video diputar ulang atau digeser mundur
           if (value.position < value.duration - const Duration(seconds: 2)) {
             hasTriggeredNext = false;
           }
@@ -1973,7 +1946,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             const ColoredBox(color: Colors.black),
             NotificationListener<ScrollNotification>(
               onNotification: (notification) {
-                // Pengaman tambahan: Jika user berada di halaman terakhir dan mencoba swipe ke bawah lagi, langsung panggil random series
                 if (notification is ScrollEndNotification && totalEpisodes > 0 && _index >= totalEpisodes - 1) {
                   if (_pageController.hasClients && _pageController.position.pixels >= _pageController.position.maxScrollExtent) {
                     _navigateToRandomSeries();
