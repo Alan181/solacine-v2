@@ -1234,7 +1234,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           final bool isValidDuration = value.duration > const Duration(seconds: 1);
           final bool isAtAbsoluteEnd = isValidDuration && value.position >= value.duration;
           
-          // Ambang batas ketat 300ms terakhir atau benar-benar habis total di ujung episode terakhir
+          // Ambang batas ketat 300ms terakhir atau benar-benar habis total
           final bool isNearEndPaused = isValidDuration && 
                                        value.position >= value.duration - const Duration(milliseconds: 300) && 
                                        !value.isPlaying &&
@@ -1244,14 +1244,15 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             hasTriggeredNext = true;
             
             final currentEpNum = _currentEpisodeNumber;
+            final maxEpisodes = _episodesTotal > 0 ? _episodesTotal : (_data?.episodesTotal ?? 0);
             
-            // CEK MUTLAK: Jika sudah di episode terakhir dan video habis, panggil random series!
-            if (_index >= _episodesTotal - 1 || currentEpNum >= _episodesTotal) {
+            // CEK MUTLAK: Hanya panggil random series jika nomor episode saat ini SUDAH SAMA DENGAN total episode (misal: 12 dari 12)
+            if (currentEpNum >= maxEpisodes && maxEpisodes > 0) {
               _navigateToRandomSeries();
             } else {
-              // Jika belum, lanjut ke episode berikutnya
+              // Jika belum (misal baru habis ep 11 dari 12), WAJIB lanjut ke episode berikutnya (ep 12)
               final nextIndex = _index + 1;
-              if (nextIndex < _episodesTotal && _pageController.hasClients) {
+              if ((maxEpisodes <= 0 || nextIndex < maxEpisodes) && _pageController.hasClients) {
                 _pageController.animateToPage(
                   nextIndex,
                   duration: const Duration(milliseconds: 300),
@@ -1973,7 +1974,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             NotificationListener<ScrollNotification>(
               onNotification: (notification) {
                 // Pengaman tambahan: Jika user berada di halaman terakhir dan mencoba swipe ke bawah lagi, langsung panggil random series
-                if (notification is ScrollEndNotification && _index >= totalEpisodes - 1) {
+                if (notification is ScrollEndNotification && totalEpisodes > 0 && _index >= totalEpisodes - 1) {
                   if (_pageController.hasClients && _pageController.position.pixels >= _pageController.position.maxScrollExtent) {
                     _navigateToRandomSeries();
                   }
@@ -1987,7 +1988,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                 onPageChanged: (i) async {
                   if (widget.reelsPreview) return;
 
-                  if (i >= totalEpisodes || i >= _episodesTotal) {
+                  if (totalEpisodes > 0 && i >= totalEpisodes) {
                     _navigateToRandomSeries();
                     return;
                   }
