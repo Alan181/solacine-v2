@@ -1221,12 +1221,14 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             
             final currentEpNum = _currentEpisodeNumber;
             final maxEpisodes = _episodesTotal > 0 ? _episodesTotal : (_data?.episodesTotal ?? 0);
-            final totalEpisodes = maxEpisodes;
-            
-            final bool isLastEpisode = maxEpisodes > 0 && currentEpNum >= maxEpisodes;
-            final bool isLastPageIndex = _index >= totalEpisodes - 1;
+            final nextEpNum = currentEpNum + 1;
 
-            if (!isLastEpisode && !isLastPageIndex) {
+            // KUNCI UTAMA: Cek apakah episode berikutnya ada secara mutlak (berdasarkan total episodes API atau map lokal)
+            final bool hasNextEpisode = (maxEpisodes > 0 && nextEpNum <= maxEpisodes) || 
+                                        _episodesByNumber.containsKey(nextEpNum);
+
+            if (hasNextEpisode && _index < (maxEpisodes > 0 ? maxEpisodes - 1 : _index + 1)) {
+              // Jika episode berikutnya masih ada, geser ke halaman/episode selanjutnya
               final nextIndex = _index + 1;
               if (_pageController.hasClients) {
                 _pageController.animateToPage(
@@ -1236,6 +1238,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                 );
               }
             } else {
+              // Jika sudah mencapai episode terakhir, langsung panggil fungsi film acak
               _navigateToRandomSeries();
             }
           }
