@@ -1197,7 +1197,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         await c.setPlaybackSpeed(_playbackSpeed);
         await c.setLooping(false);
 
-        // Listener video murni untuk menggeser ke episode berikutnya secara mulus
+        // Pelindung agar eksekusi transisi hanya terpanggil sekali ketika video habis di ujung
         bool hasTriggeredNext = false;
 
         c.addListener(() {
@@ -1205,26 +1205,35 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           final value = c?.value;
           if (value == null || !value.isInitialized) return;
 
-          final bool isAtEnd = value.position >= value.duration - const Duration(milliseconds: 500) 
+          // Deteksi jika video sudah mencapai ujung (toleransi 400 milidetik sebelum durasi habis)
+          final bool isAtEnd = value.position >= value.duration - const Duration(milliseconds: 400) 
                                && value.duration > Duration.zero;
 
-          if (isAtEnd && !value.isPlaying && !hasTriggeredNext) {
+          if (isAtEnd && !hasTriggeredNext) {
             hasTriggeredNext = true;
             
-            final nextIndex = _index + 1;
-            if (nextIndex < _episodesTotal && _pageController.hasClients) {
-              _pageController.animateToPage(
-                nextIndex,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
-            } else if (nextIndex >= _episodesTotal) {
-              // Jika sudah di episode ujung dan habis, langsung panggil random series!
+            final currentEpNum = _currentEpisodeNumber;
+            
+            // Jika sudah di episode terakhir, langsung panggil random series!
+            if (currentEpNum >= _episodesTotal) {
               _navigateToRandomSeries();
+            } else {
+              // Jika belum episode terakhir, lanjut ke episode berikutnya
+              final nextIndex = _index + 1;
+              if (nextIndex < _episodesTotal && _pageController.hasClients) {
+                _pageController.animateToPage(
+                  nextIndex,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              } else {
+                _navigateToRandomSeries();
+              }
             }
           }
-          
-          if (value.position < value.duration - const Duration(seconds: 2)) {
+
+          // Reset pelindung jika video diputar ulang atau digeser mundur oleh pengguna
+          if (value.position < value.duration - const Duration(seconds: 1)) {
             hasTriggeredNext = false;
           }
         });
@@ -1937,7 +1946,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
               onPageChanged: (i) async {
                 if (widget.reelsPreview) return;
 
-                // Jika pengguna melewati episode terakhir (swipe atau auto-play berlebih), lompat ke series acak!
                 if (i >= totalEpisodes) {
                   _navigateToRandomSeries();
                   return;
@@ -2003,7 +2011,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                   coinsBalance: coinsBalance,
                   totalEpisodes: totalEpisodes,
                   controlsVisible: _controlsVisible,
-                  videoLoading: _videoLoading,
+      videoLoading: _videoLoading,
                   videoError: _videoError,
                   activeVideoUrl: _activeVideoUrl,
                   showLikeBurst: _showLikeBurst,
