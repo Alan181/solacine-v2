@@ -474,8 +474,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
       if (!mounted) return;
 
-      // Menggunakan GoRouter agar rute baru tetap berada di dalam manajemen router 
-      // dan tombol kembali (back) di pojok kiri atas tetap berfungsi sempurna.
       final targetPath = '/watch/$targetSlug?title=${Uri.encodeComponent(targetTitle)}&from=reels';
       
       if (GoRouter.of(context).canPop()) {
@@ -1223,8 +1221,12 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             
             final currentEpNum = _currentEpisodeNumber;
             final maxEpisodes = _episodesTotal > 0 ? _episodesTotal : (_data?.episodesTotal ?? 0);
+            final totalEpisodes = total > 0 ? total : maxEpisodes;
             
-            if (maxEpisodes > 0 && currentEpNum < maxEpisodes) {
+            final bool isLastEpisode = maxEpisodes > 0 && currentEpNum >= maxEpisodes;
+            final bool isLastPageIndex = _index >= totalEpisodes - 1;
+
+            if (!isLastEpisode && !isLastPageIndex) {
               final nextIndex = _index + 1;
               if (_pageController.hasClients) {
                 _pageController.animateToPage(
