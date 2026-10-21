@@ -84,6 +84,8 @@ class RewardTask {
         return 'AD';
       case 'link':
         return 'LINK';
+      case 'drama':
+        return 'DRAMA'; // <-- Ditambahkan untuk tipe drama
       case 'survey':
         return 'SURVEY';
       case 'bonus':
@@ -103,6 +105,8 @@ class RewardTask {
         return 'Watch Ad';
       case 'link':
         return 'Visit Link';
+      case 'drama':
+        return 'Watch Drama'; // <-- Ditambahkan untuk tipe drama
       case 'survey':
         return 'Take Survey';
       case 'bonus':
@@ -122,6 +126,8 @@ class RewardTask {
         return '🎬';
       case 'link':
         return '🔗';
+      case 'drama':
+        return '🍿'; // <-- Ditambahkan ikon popcorn/film untuk drama
       case 'survey':
         return '📋';
       case 'bonus':
