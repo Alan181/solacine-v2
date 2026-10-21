@@ -96,8 +96,8 @@ class RewardsTasksList extends StatelessWidget {
             final claimed = claimedTaskIds.contains(task.id);
             final loading = loadingTaskIds.contains(task.id);
 
-            // Deteksi apakah ini misi tonton drama berdasarkan judul (misal: "Tonton 3 Episode Drama")
-            final dramaRegExp = RegExp(r'tonton\s+(\d+)\s+episode', caseSensitive: false);
+            // Deteksi misi tonton drama dengan regex fleksibel (mendukung kata Episode, Serial, dll)
+            final dramaRegExp = RegExp(r'tonton.*?(\d+)', caseSensitive: false);
             final match = dramaRegExp.firstMatch(task.title);
             final isDramaTask = match != null;
 
