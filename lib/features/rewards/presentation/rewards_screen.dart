@@ -315,7 +315,12 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
     if (_loadingTaskIds.contains(task.id)) return;
     final t = AppI18n.of(context);
 
-    if (_pendingLinkTaskId != task.id) return;
+    // Deteksi apakah ini misi drama atau task biasa yang tidak butuh pending link 15 detik
+    final dramaRegExp = RegExp(r'tonton.*?(\d+)', caseSensitive: false);
+    final isDrama = task.type == 'drama' || dramaRegExp.hasMatch(task.title);
+
+    // Jika bukan drama dan pending link task belum selesai, abaikan
+    if (!isDrama && _pendingLinkTaskId != task.id) return;
 
     _markTaskLoading(task.id, loading: true);
     int awarded = 0;
