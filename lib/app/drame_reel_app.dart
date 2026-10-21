@@ -26,7 +26,7 @@ class DrameReelApp extends ConsumerWidget {
         ? bootstrap!.languages.map((e) => Locale(e.code)).toList()
         : [];
 
-    const fallbackLocales = [Locale('ar'), Locale('en')];
+    const fallbackLocales = [Locale('id'), Locale('en'), Locale('ar')];
     final supportedLocales = <Locale>[
       ...serverLocales,
       for (final l in fallbackLocales)
@@ -40,10 +40,12 @@ class DrameReelApp extends ConsumerWidget {
       final sysLang = PlatformDispatcher.instance.locale.languageCode.toLowerCase();
       if (sysLang.startsWith('ar')) {
         effectiveLocale = const Locale('ar');
+      } else if (sysLang.startsWith('id')) {
+        effectiveLocale = const Locale('id');
       } else if (serverLocales.isNotEmpty) {
         effectiveLocale = serverLocales.first;
       } else {
-        effectiveLocale = const Locale('ar');
+        effectiveLocale = const Locale('id');
       }
     }
     final isArabic = effectiveLocale.languageCode.toLowerCase().startsWith('ar');
