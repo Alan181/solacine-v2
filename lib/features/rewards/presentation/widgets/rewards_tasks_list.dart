@@ -101,12 +101,15 @@ class RewardsTasksList extends StatelessWidget {
             final match = dramaRegExp.firstMatch(task.title);
             final isDramaTask = match != null;
 
-            // Untuk sementara di Flutter, jika ini task drama kita set tombol langsung klaim (backend yang akan memvalidasi apakah jumlah tontonannya sudah cukup atau belum)
             final isLink = task.type == 'link' && !isDramaTask;
             final pending = pendingLinkTaskId == task.id;
             final isCountingDown = countingDownTaskId == task.id && countdownSeconds > 0;
 
-            final enabled = !claimed && !loading && !isCountingDown;
+            // Untuk misi drama, tombol siap diklaim jika isCompleted bernilai true dari backend
+            final bool dramaReadyToClaim = isDramaTask && task.isCompleted;
+
+            // Tombol hanya aktif jika tidak claimed, tidak loading, dan untuk drama harus sudah tercapai (isCompleted)
+            final enabled = !claimed && !loading && !isCountingDown && (isDramaTask ? dramaReadyToClaim : true);
             
             String buttonLabel;
             if (claimed) {
@@ -124,7 +127,6 @@ class RewardsTasksList extends StatelessWidget {
             VoidCallback? tap;
             if (enabled) {
               if (isDramaTask) {
-                // Langsung kirim request klaim ke backend, server akan menolak jika tontonan kurang dan membolehkan jika sudah cukup
                 tap = () => onClaimLinkTask(task);
               } else if (isLink) {
                 tap = pending ? () => onClaimLinkTask(task) : () => onStartLinkTask(task);
@@ -140,7 +142,8 @@ class RewardsTasksList extends StatelessWidget {
                 task: task,
                 title: task.title,
                 rewardCoins: task.rewardCoins,
-                claimReady: isDramaTask ? true : pending,
+                // Tombol menyala kuning hanya jika misi drama sudah tercapai
+                claimReady: isDramaTask ? dramaReadyToClaim : pending,
                 loading: loading,
                 buttonLabel: buttonLabel,
                 countdownSeconds: isCountingDown ? countdownSeconds : null,
