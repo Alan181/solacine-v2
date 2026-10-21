@@ -105,7 +105,7 @@ class RewardsTasksList extends StatelessWidget {
             final pending = pendingLinkTaskId == task.id;
             final isCountingDown = countingDownTaskId == task.id && countdownSeconds > 0;
 
-            // Target episode dari judul task
+            // Target episode dari judul task (fallback ke 3 jika tidak ada angka di judul)
             final int requiredCount = match != null ? int.parse(match.group(1)!) : 3;
             final int watchedCount = task.isCompleted ? requiredCount : 0;
 
@@ -147,7 +147,6 @@ class RewardsTasksList extends StatelessWidget {
                 title: task.title,
                 rewardCoins: task.rewardCoins,
                 claimReady: isDramaTask ? dramaReadyToClaim : pending,
-                claimed: claimed, // Mengirim status claimed untuk mengubah tombol jadi hijau
                 loading: loading,
                 buttonLabel: buttonLabel,
                 countdownSeconds: isCountingDown ? countdownSeconds : null,
