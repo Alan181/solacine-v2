@@ -13,7 +13,7 @@ class AppI18n {
   static final Map<String, Map<String, String>> _runtime = {};
 
   static const _fallbackEn = <String, String>{
-    'app_name': 'DrameReel',
+    'app_name': 'Solacine',
     'login_title': 'Sign in',
     'register_title': 'Create account',
     'email': 'Email',
