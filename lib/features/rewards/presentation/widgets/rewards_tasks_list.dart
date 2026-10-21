@@ -105,6 +105,10 @@ class RewardsTasksList extends StatelessWidget {
             final pending = pendingLinkTaskId == task.id;
             final isCountingDown = countingDownTaskId == task.id && countdownSeconds > 0;
 
+            // Untuk misi drama, ambil progres tontonan dari data task (fallback ke 0 jika null)
+            final int watchedCount = (task.watchedTodayCount as num?)?.toInt() ?? 0;
+            final int requiredCount = (task.requiredEpisodes as num?)?.toInt() ?? (match != null ? int.parse(match.group(1)!) : 3);
+
             // Untuk misi drama, tombol siap diklaim jika isCompleted bernilai true dari backend
             final bool dramaReadyToClaim = isDramaTask && task.isCompleted;
 
@@ -115,7 +119,8 @@ class RewardsTasksList extends StatelessWidget {
             if (claimed) {
               buttonLabel = t.t('claimed');
             } else if (isDramaTask) {
-              buttonLabel = t.t('claim');
+              // Jika belum siap klaim, tampilkan progres angka dinamis misal: 0/3, 1/3, dst.
+              buttonLabel = dramaReadyToClaim ? t.t('claim') : '$watchedCount/$requiredCount';
             } else if (isCountingDown) {
               buttonLabel = '${countdownSeconds}s';
             } else if (isLink) {
@@ -142,7 +147,7 @@ class RewardsTasksList extends StatelessWidget {
                 task: task,
                 title: task.title,
                 rewardCoins: task.rewardCoins,
-                // Tombol menyala kuning hanya jika misi drama sudah tercapai
+                // Tombol menyala kuning hanya jika misi drama sudah tercapai atau link sudah pending
                 claimReady: isDramaTask ? dramaReadyToClaim : pending,
                 loading: loading,
                 buttonLabel: buttonLabel,
