@@ -61,10 +61,14 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
             return;
           }
           if (index == 2) {
-            context.go('/my-list');
+            context.go('/rewards');
             return;
           }
           if (index == 3) {
+            context.go('/my-list');
+            return;
+          }
+          if (index == 4) {
             context.go('/profile');
           }
         },
@@ -101,13 +105,28 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
           ),
           NavigationDestination(
             icon: Image.asset(
+              'assets/images/mine_icon_medeem.webp',
+              width: 28,
+              height: 28,
+              filterQuality: FilterQuality.low,
+            ),
+            selectedIcon: WaterFillNavIcon(
+              key: ValueKey('nav_rewards_${widget.currentIndex == 2 ? _tapKey : 0}'),
+              unselectedAssetPath: 'assets/images/mine_icon_medeem.webp',
+              selectedAssetPath: 'assets/images/mine_icon_medeem.webp',
+              size: 28,
+            ),
+            label: t.t('nav_rewards'),
+          ),
+          NavigationDestination(
+            icon: Image.asset(
               'assets/images/ms_app_tabbar_icon_my_list.png',
               width: 28,
               height: 28,
               filterQuality: FilterQuality.low,
             ),
             selectedIcon: WaterFillNavIcon(
-              key: ValueKey('nav_my_list_${widget.currentIndex == 2 ? _tapKey : 0}'),
+              key: ValueKey('nav_my_list_${widget.currentIndex == 3 ? _tapKey : 0}'),
               unselectedAssetPath: 'assets/images/ms_app_tabbar_icon_my_list.png',
               selectedAssetPath: 'assets/images/ms_app_tabbar_icon_sel_my_list.png',
               size: 28,
@@ -122,7 +141,7 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
               filterQuality: FilterQuality.low,
             ),
             selectedIcon: WaterFillNavIcon(
-              key: ValueKey('nav_profile_${widget.currentIndex == 3 ? _tapKey : 0}'),
+              key: ValueKey('nav_profile_${widget.currentIndex == 4 ? _tapKey : 0}'),
               unselectedAssetPath: 'assets/images/ms_app_tabbar_icon_mine.png',
               selectedAssetPath: 'assets/images/ms_app_tabbar_icon_sel_mine.png',
               size: 28,
