@@ -45,7 +45,7 @@ class RewardsTasksList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Daily Tasks Section Header (exactly like website)
+        // Daily Tasks Section Header
         Row(
           children: [
             Container(
@@ -95,38 +95,52 @@ class RewardsTasksList extends StatelessWidget {
           ...visibleTasks.map((task) {
             final claimed = claimedTaskIds.contains(task.id);
             final loading = loadingTaskIds.contains(task.id);
-            final isLink = task.type == 'link';
+
+            // Deteksi apakah ini misi tonton drama berdasarkan judul (misal: "Tonton 3 Episode Drama")
+            final dramaRegExp = RegExp(r'tonton\s+(\d+)\s+episode', caseSensitive: false);
+            final match = dramaRegExp.firstMatch(task.title);
+            final isDramaTask = match != null;
+
+            // Untuk sementara di Flutter, jika ini task drama kita set tombol langsung klaim (backend yang akan memvalidasi apakah jumlah tontonannya sudah cukup atau belum)
+            final isLink = task.type == 'link' && !isDramaTask;
             final pending = pendingLinkTaskId == task.id;
             final isCountingDown = countingDownTaskId == task.id && countdownSeconds > 0;
-            final claimReady = pending;
 
             final enabled = !claimed && !loading && !isCountingDown;
-            final buttonLabel = claimed
-                ? t.t('claimed')
-                : isCountingDown
-                    ? '${countdownSeconds}s'
-                    : isLink
-                        ? pending
-                            ? t.t('claim')
-                            : t.t('start')
-                        : t.t('start');
+            
+            String buttonLabel;
+            if (claimed) {
+              buttonLabel = t.t('claimed');
+            } else if (isDramaTask) {
+              buttonLabel = t.t('claim');
+            } else if (isCountingDown) {
+              buttonLabel = '${countdownSeconds}s';
+            } else if (isLink) {
+              buttonLabel = pending ? t.t('claim') : t.t('start');
+            } else {
+              buttonLabel = t.t('claim');
+            }
 
             VoidCallback? tap;
             if (enabled) {
-              if (isLink) {
+              if (isDramaTask) {
+                // Langsung kirim request klaim ke backend, server akan menolak jika tontonan kurang dan membolehkan jika sudah cukup
+                tap = () => onClaimLinkTask(task);
+              } else if (isLink) {
                 tap = pending ? () => onClaimLinkTask(task) : () => onStartLinkTask(task);
               } else {
                 final canOpen = task.targetUrl.trim().isNotEmpty;
-                tap = canOpen ? () => onOpenUrl(task.targetUrl) : null;
+                tap = canOpen ? () => onOpenUrl(task.targetUrl) : () => onClaimLinkTask(task);
               }
             }
+
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: RewardsTaskCard(
                 task: task,
                 title: task.title,
                 rewardCoins: task.rewardCoins,
-                claimReady: claimReady,
+                claimReady: isDramaTask ? true : pending,
                 loading: loading,
                 buttonLabel: buttonLabel,
                 countdownSeconds: isCountingDown ? countdownSeconds : null,
