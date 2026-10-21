@@ -128,6 +128,7 @@ class AppI18n {
     'badge_pro': 'PRO',
     'nav_home': 'Home',
     'nav_reels': 'Reels',
+    'nav_rewards': 'Rewards', // <--- DITAMBAHKAN DI SINI
     'nav_my_list': 'My List',
     'nav_profile': 'Profile',
     'search': 'Search',
@@ -343,6 +344,7 @@ class AppI18n {
     'vip': 'VIP',
     'coins': 'نقاط',
     'wallet_coins': 'نقاط',
+    'nav_rewards': 'المكافآت',
   };
 
   static void setTranslations(String lang, Map<String, String> translations) {
