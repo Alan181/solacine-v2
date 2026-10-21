@@ -212,7 +212,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
           ],
         ),
-        bottomNavigationBar: const AppBottomNavBar(currentIndex: 3),
+        bottomNavigationBar: const AppBottomNavBar(currentIndex: 4), // Diubah dari 3 ke 4
       ),
     );
   }
