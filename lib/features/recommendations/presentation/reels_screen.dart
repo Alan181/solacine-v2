@@ -238,7 +238,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> with WidgetsBindingOb
         backgroundColor: Colors.black,
         body: content,
         bottomNavigationBar: AppBottomNavBar(
-          currentIndex: 1,
+          currentIndex: ActiveShellBranchScope.maybeOf(context) ?? 1,
           onTabReselected: (index) {
             if (index == 1) {
               _handleReelsTabReselected();
