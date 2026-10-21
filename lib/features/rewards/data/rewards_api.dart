@@ -61,6 +61,7 @@ class RewardTask {
     required this.rewardText,
     required this.sortOrder,
     required this.isActive,
+    required this.isCompleted,
   });
 
   final int id;
@@ -75,6 +76,7 @@ class RewardTask {
   final String rewardText;
   final int sortOrder;
   final bool isActive;
+  final bool isCompleted;
 
   static String _defaultBadgeForType(String typeKey) {
     switch (typeKey) {
@@ -139,6 +141,8 @@ class RewardTask {
     final rawLabel = (json['type_label'] as String?) ?? '';
     final rawIcon = (json['type_badge_icon'] as String?) ?? '';
     final rawRewardText = (json['reward_text'] as String?) ?? '';
+    final completed = json['is_completed'] == true || json['completed'] == true;
+
     return RewardTask(
       id: (json['id'] as num?)?.toInt() ?? 0,
       platform: (json['platform'] as String?) ?? 'android',
@@ -152,6 +156,7 @@ class RewardTask {
       rewardText: rawRewardText.trim(),
       sortOrder: (json['sort_order'] as num?)?.toInt() ?? 100,
       isActive: json['is_active'] != false,
+      isCompleted: completed,
     );
   }
 }
