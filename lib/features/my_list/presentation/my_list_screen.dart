@@ -164,7 +164,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
               : null,
         ),
         body: SafeArea(child: _MyListGridView(filter: _effectiveQuery)),
-        bottomNavigationBar: const AppBottomNavBar(currentIndex: 2),
+        bottomNavigationBar: const AppBottomNavBar(currentIndex: 3), // Diubah dari 2 ke 3
       ),
     );
   }
