@@ -89,6 +89,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
         branches: [
+          // Index 0: Home
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -99,6 +100,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // Index 1: Reels
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -109,6 +111,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // Index 2: Rewards (BARU DITAMBAHKAN DI TENGAH)
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/rewards',
+                pageBuilder: (context, state) => const NoTransitionPage(
+                  child: RewardsScreen(),
+                ),
+              ),
+            ],
+          ),
+          // Index 3: My List
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -119,6 +133,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // Index 4: Profile
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -303,12 +318,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: '/rewards',
-        pageBuilder: (context, state) => const NoTransitionPage(
-          child: RewardsScreen(),
-        ),
-      ),
-      GoRoute(
         path: '/genre/:slug',
         pageBuilder: (context, state) {
           final slug = state.pathParameters['slug'] ?? '';
@@ -389,7 +398,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/verify-email';
       }
 
-      // DIPERBAIKI: Hanya diarahkan ke reels saat baru masuk/login, tombol home sekarang bebas diklik
       if (signedIn && (loc == '/' || isAuthRoute)) {
         return '/reels';
       }
