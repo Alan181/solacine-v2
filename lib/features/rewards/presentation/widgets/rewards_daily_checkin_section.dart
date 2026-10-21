@@ -228,6 +228,7 @@ class _CheckinCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppI18n.of(context);
+    final dayLabelWord = t.t('day').isNotEmpty ? t.t('day') : 'Day';
 
     if (isClaimed) {
       return Container(
@@ -242,7 +243,7 @@ class _CheckinCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '${t.t('day')} $day',
+              '$dayLabelWord $day',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.40),
                 fontSize: 9.5,
@@ -347,7 +348,7 @@ class _CheckinCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '${t.t('day')} $day',
+                '$dayLabelWord $day',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.40),
                   fontSize: 9.5,
