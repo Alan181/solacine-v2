@@ -73,6 +73,7 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
           }
         },
         destinations: [
+          // Index 0: Home
           NavigationDestination(
             icon: Image.asset(
               'assets/images/ms_app_tabbar_icon_category.png',
@@ -88,6 +89,7 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
             ),
             label: t.t('nav_home'),
           ),
+          // Index 1: Reels
           NavigationDestination(
             icon: Image.asset(
               'assets/images/ms_app_tabbar_icon_recommend.png',
@@ -103,21 +105,23 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
             ),
             label: t.t('nav_reels'),
           ),
+          // Index 2: Rewards (Menggunakan ikon mine/rewards .png)
           NavigationDestination(
             icon: Image.asset(
-              'assets/images/mine_icon_medeem.webp',
+              'assets/images/ms_app_tabbar_icon_mine.png',
               width: 28,
               height: 28,
               filterQuality: FilterQuality.low,
             ),
             selectedIcon: WaterFillNavIcon(
               key: ValueKey('nav_rewards_${widget.currentIndex == 2 ? _tapKey : 0}'),
-              unselectedAssetPath: 'assets/images/mine_icon_medeem.webp',
-              selectedAssetPath: 'assets/images/mine_icon_medeem.webp',
+              unselectedAssetPath: 'assets/images/ms_app_tabbar_icon_mine.png',
+              selectedAssetPath: 'assets/images/ms_app_tabbar_icon_sel_mine.png',
               size: 28,
             ),
             label: t.t('nav_rewards'),
           ),
+          // Index 3: My List
           NavigationDestination(
             icon: Image.asset(
               'assets/images/ms_app_tabbar_icon_my_list.png',
@@ -133,6 +137,7 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
             ),
             label: t.t('nav_my_list'),
           ),
+          // Index 4: Profile
           NavigationDestination(
             icon: Image.asset(
               'assets/images/ms_app_tabbar_icon_mine.png',
