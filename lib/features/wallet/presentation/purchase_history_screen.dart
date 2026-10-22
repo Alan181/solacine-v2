@@ -41,12 +41,110 @@ class PurchaseHistoryScreen extends ConsumerStatefulWidget {
   ConsumerState<PurchaseHistoryScreen> createState() => _PurchaseHistoryScreenState();
 }
 
-class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
-  final _scrollController = ScrollController();
+class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
 
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _goBack() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/profile');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppI18n.of(context);
+
+    return PopScope(
+      canPop: context.canPop(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _goBack();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0C0D0E),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF0C0D0E),
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+          leading: IconButton(
+            onPressed: _goBack,
+            icon: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: const Color(0xFF18191D),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF26282E)),
+              ),
+              child: const Icon(Icons.arrow_back_ios_new_rounded, size: 14, color: Color(0xFFE4E4E7)),
+            ),
+          ),
+          title: Text(
+            t.t('purchase_history'),
+            style: const TextStyle(
+              color: Color(0xFFF4F4F5),
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+            ),
+          ),
+          bottom: TabBar(
+            controller: _tabController,
+            indicatorColor: Colors.white,
+            indicatorSize: TabBarIndicatorSize.label,
+            labelColor: Colors.white,
+            unselectedLabelColor: const Color(0xFF71717A),
+            labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w400),
+            tabs: const [
+              Tab(text: 'Pembelian'),
+              Tab(text: 'Konversi Koin'),
+              Tab(text: 'Penarikan'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          controller: _tabController,
+          children: const [
+            _OrdersTabWidget(),
+            _ConversionsTabWidget(),
+            _WithdrawalsTabWidget(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// TAB 1: PEMBELIAN (PURCHASE ORDERS)
+// ==========================================
+class _OrdersTabWidget extends ConsumerStatefulWidget {
+  const _OrdersTabWidget();
+
+  @override
+  ConsumerState<_OrdersTabWidget> createState() => _OrdersTabWidgetState();
+}
+
+class _OrdersTabWidgetState extends ConsumerState<_OrdersTabWidget> {
+  final _scrollController = ScrollController();
   Object? _error;
   bool _loading = true;
-
   final List<PaymentOrderDto> _orders = [];
   WalletPagination? _ordersPagination;
   bool _loadingMore = false;
@@ -114,17 +212,8 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
         _ordersPagination = page.pagination;
       });
     } catch (_) {
-      // Ignore pagination errors
     } finally {
       if (mounted) setState(() => _loadingMore = false);
-    }
-  }
-
-  void _goBack() {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/profile');
     }
   }
 
@@ -133,78 +222,30 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
     final t = AppI18n.of(context);
     final showError = _error != null && !_loading && _orders.isEmpty;
 
-    return PopScope(
-      canPop: context.canPop(),
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        _goBack();
-      },
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0C0D0E),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF0C0D0E),
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          centerTitle: true,
-          leading: IconButton(
-            onPressed: _goBack,
-            icon: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: const Color(0xFF18191D),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFF26282E)),
-              ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded, size: 14, color: Color(0xFFE4E4E7)),
-            ),
-          ),
-          title: Text(
-            t.t('purchase_history'),
-            style: const TextStyle(
-              color: Color(0xFFF4F4F5),
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
-            ),
-          ),
-          actions: [
-            IconButton(
-              onPressed: _loadOrders,
-              tooltip: t.t('retry'),
-              icon: const Icon(
-                Icons.refresh_rounded,
-                size: 19,
-                color: Color(0xFFA1A1AA),
-              ),
-            ),
-            ConstrainedBox(constraints: const BoxConstraints(maxWidth: 4)),
+    if (showError) {
+      return RefreshIndicator(
+        onRefresh: _loadOrders,
+        color: const Color(0xFFA1A1AA),
+        backgroundColor: const Color(0xFF18191D),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+          children: [
+            _ErrorState(onRetry: _loadOrders),
           ],
         ),
-        body: showError
-            ? RefreshIndicator(
-                onRefresh: _loadOrders,
-                color: const Color(0xFFA1A1AA),
-                backgroundColor: const Color(0xFF18191D),
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-                  children: [
-                    _ErrorState(onRetry: _loadOrders),
-                  ],
-                ),
-              )
-            : RefreshIndicator(
-                onRefresh: _loadOrders,
-                color: const Color(0xFFA1A1AA),
-                backgroundColor: const Color(0xFF18191D),
-                child: _loading && _orders.isEmpty
-                    ? _buildSkeletonList()
-                    : _orders.isEmpty
-                        ? _buildEmptyState(t)
-                        : _buildOrdersList(t),
-              ),
-      ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadOrders,
+      color: const Color(0xFFA1A1AA),
+      backgroundColor: const Color(0xFF18191D),
+      child: _loading && _orders.isEmpty
+          ? _buildSkeletonList()
+          : _orders.isEmpty
+              ? _buildEmptyState(t)
+              : _buildOrdersList(t),
     );
   }
 
@@ -232,7 +273,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                   borderRadius: BorderRadius.circular(6),
                 ),
               ),
-              ConstrainedBox(constraints: const BoxConstraints(maxWidth: 10)),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,7 +286,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ),
-                    ConstrainedBox(constraints: const BoxConstraints(maxWidth: 5)),
+                    const SizedBox(height: 5),
                     Container(
                       width: 70,
                       height: 9,
@@ -297,7 +338,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                   ),
                 ),
               ),
-              ConstrainedBox(constraints: const BoxConstraints(maxWidth: 16)),
+              const SizedBox(height: 16),
               Text(
                 t.t('no_transactions'),
                 style: const TextStyle(
@@ -306,7 +347,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              ConstrainedBox(constraints: const BoxConstraints(maxWidth: 6)),
+              const SizedBox(height: 6),
               const Text(
                 'All completed purchase records will be listed here.',
                 textAlign: TextAlign.center,
@@ -339,8 +380,6 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
             padding: const EdgeInsets.fromLTRB(4, 12, 4, 6),
             child: Row(
               children: [
-                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 11)),
-                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 5)),
                 Text(
                   day.isEmpty ? '—' : day,
                   style: const TextStyle(
@@ -422,7 +461,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                     ),
                   ),
                 ),
-                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 14)),
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     Container(
@@ -441,7 +480,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                         ),
                       ),
                     ),
-                    ConstrainedBox(constraints: const BoxConstraints(maxWidth: 12)),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -454,7 +493,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 2)),
+                          const SizedBox(height: 2),
                           Text(
                             _providerLabel(t, order.provider),
                             style: const TextStyle(
@@ -468,9 +507,9 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                     _StatusBadge(status: order.status, isPaid: isPaid),
                   ],
                 ),
-                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 16)),
+                const SizedBox(height: 16),
                 const Divider(color: Color(0xFF22242B), height: 1),
-                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 12)),
+                const SizedBox(height: 12),
                 _DetailRow(label: 'Order Reference', value: order.paymentOrderId, canCopy: true),
                 _DetailRow(label: 'Item Type', value: isVip ? 'VIP Membership' : 'Coin Package'),
                 if (order.coins > 0)
@@ -482,7 +521,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
                   value: formattedPrice,
                   isBoldPrice: true,
                 ),
-                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 16)),
+                const SizedBox(height: 16),
                 SizedBox(
                   height: 42,
                   child: FilledButton(
@@ -504,6 +543,381 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> {
   }
 }
 
+// ==========================================
+// TAB 2: RIWAYAT KONVERSI KOIN
+// ==========================================
+class _ConversionsTabWidget extends ConsumerStatefulWidget {
+  const _ConversionsTabWidget();
+
+  @override
+  ConsumerState<_ConversionsTabWidget> createState() => _ConversionsTabWidgetState();
+}
+
+class _ConversionsTabWidgetState extends ConsumerState<_ConversionsTabWidget> {
+  final _scrollController = ScrollController();
+  bool _loading = true;
+  bool _loadingMore = false;
+  WalletPagination? _pagination;
+  final List<CoinConversionDto> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    Future.microtask(_loadData);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.maxScrollExtent - _scrollController.position.pixels < 240) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    try {
+      final res = await ref.read(walletApiProvider).coinConversions(page: 1);
+      if (!mounted) return;
+      setState(() {
+        _items.clear();
+        _items.addAll(res.items);
+        _pagination = res.pagination;
+      });
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore) return;
+    final p = _pagination;
+    if (p == null || p.currentPage >= p.lastPage) return;
+
+    setState(() => _loadingMore = true);
+    try {
+      final res = await ref.read(walletApiProvider).coinConversions(page: p.currentPage + 1);
+      if (!mounted) return;
+      setState(() {
+        _items.addAll(res.items);
+        _pagination = res.pagination;
+      });
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading && _items.isEmpty) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF71717A), strokeWidth: 2));
+    }
+    if (_items.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _loadData,
+        color: const Color(0xFFA1A1AA),
+        backgroundColor: const Color(0xFF18191D),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(24, 60, 24, 40),
+          children: [
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF16171B),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF26282E)),
+                    ),
+                    child: const Center(child: Icon(Icons.currency_exchange_rounded, size: 28, color: Color(0xFF71717A))),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Belum ada riwayat konversi koin', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 15, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  const Text('Riwayat penukaran koin Anda akan muncul di sini.', style: TextStyle(color: Color(0xFF71717A), fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      color: const Color(0xFFA1A1AA),
+      backgroundColor: const Color(0xFF18191D),
+      child: ListView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
+        itemCount: _items.length,
+        itemBuilder: (context, index) {
+          final item = _items[index];
+          final dt = item.createdAt;
+          final dateStr = dt == null ? '' : '${_formatDay(dt)} ${_formatTime(dt)}';
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131418),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF1E2026)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1C22),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF262830)),
+                  ),
+                  child: const Center(child: Icon(Icons.repeat_rounded, size: 16, color: Color(0xFF9E9EA7))),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Tukar ${item.coinsConverted} Koin', style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(dateStr, style: const TextStyle(color: Color(0xFF71717A), fontSize: 11)),
+                    ],
+                  ),
+                ),
+                Text(
+                  '+Rp ${item.cashReceived.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
+                  style: const TextStyle(color: Color(0xFF4ADE80), fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ==========================================
+// TAB 3: RIWAYAT PENARIKAN (WITHDRAW)
+// ==========================================
+class _WithdrawalsTabWidget extends ConsumerStatefulWidget {
+  const _WithdrawalsTabWidget();
+
+  @override
+  ConsumerState<_WithdrawalsTabWidget> createState() => _WithdrawalsTabWidgetState();
+}
+
+class _WithdrawalsTabWidgetState extends ConsumerState<_WithdrawalsTabWidget> {
+  final _scrollController = ScrollController();
+  bool _loading = true;
+  bool _loadingMore = false;
+  WalletPagination? _pagination;
+  final List<WithdrawRequestDto> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    Future.microtask(_loadData);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.maxScrollExtent - _scrollController.position.pixels < 240) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    try {
+      final res = await ref.read(walletApiProvider).withdrawRequestsHistory(page: 1);
+      if (!mounted) return;
+      setState(() {
+        _items.clear();
+        _items.addAll(res.items);
+        _pagination = res.pagination;
+      });
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore) return;
+    final p = _pagination;
+    if (p == null || p.currentPage >= p.lastPage) return;
+
+    setState(() => _loadingMore = true);
+    try {
+      final res = await ref.read(walletApiProvider).withdrawRequestsHistory(page: p.currentPage + 1);
+      if (!mounted) return;
+      setState(() {
+        _items.addAll(res.items);
+        _pagination = res.pagination;
+      });
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading && _items.isEmpty) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF71717A), strokeWidth: 2));
+    }
+    if (_items.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _loadData,
+        color: const Color(0xFFA1A1AA),
+        backgroundColor: const Color(0xFF18191D),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(24, 60, 24, 40),
+          children: [
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF16171B),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF26282E)),
+                    ),
+                    child: const Center(child: Icon(Icons.account_balance_wallet_outlined, size: 28, color: Color(0xFF71717A))),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Belum ada riwayat penarikan', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 15, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  const Text('Permintaan tarik saldo DANA/GoPay Anda akan tampil di sini.', style: TextStyle(color: Color(0xFF71717A), fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      color: const Color(0xFFA1A1AA),
+      backgroundColor: const Color(0xFF18191D),
+      child: ListView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
+        itemCount: _items.length,
+        itemBuilder: (context, index) {
+          final item = _items[index];
+          final dt = item.createdAt;
+          final dateStr = dt == null ? '' : '${_formatDay(dt)} ${_formatTime(dt)}';
+          final statusNorm = item.status.trim().toLowerCase();
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131418),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF1E2026)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1C22),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF262830)),
+                  ),
+                  child: const Center(child: Icon(Icons.account_balance_wallet_rounded, size: 16, color: Color(0xFF9E9EA7))),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Tarik ke ${item.walletType}', style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Text(item.walletNumber, style: const TextStyle(color: Color(0xFF71717A), fontSize: 11, fontFamily: 'monospace')),
+                          const Text(' • ', style: TextStyle(color: Color(0xFF3F3F46), fontSize: 10)),
+                          Text(dateStr, style: const TextStyle(color: Color(0xFF71717A), fontSize: 11)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '-Rp ${item.amountIdr.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
+                      style: const TextStyle(color: Color(0xFFF87171), fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 3),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5.5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: statusNorm == 'paid' || statusNorm == 'success' ? const Color(0xFF13231B) : const Color(0xFF261E14),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: statusNorm == 'paid' || statusNorm == 'success' ? const Color(0xFF1D3B2D) : const Color(0xFF42321C),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Text(
+                        statusNorm.toUpperCase(),
+                        style: TextStyle(
+                          color: statusNorm == 'paid' || statusNorm == 'success' ? const Color(0xFF4ADE80) : const Color(0xFFFBBF24),
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ==========================================
+// WIDGET PENDUKUNG & HELPER LAINNYA
+// ==========================================
 class _CompactOrderCard extends StatelessWidget {
   const _CompactOrderCard({required this.item, required this.onTap});
 
@@ -541,7 +955,6 @@ class _CompactOrderCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
             child: Row(
               children: [
-                // Compact formal icon
                 Container(
                   width: 34,
                   height: 34,
@@ -558,8 +971,7 @@ class _CompactOrderCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 10)),
-                // Title and provider
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -575,7 +987,7 @@ class _CompactOrderCard extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      ConstrainedBox(constraints: const BoxConstraints(maxWidth: 2)),
+                      const SizedBox(height: 2),
                       Row(
                         children: [
                           Text(
@@ -587,39 +999,19 @@ class _CompactOrderCard extends StatelessWidget {
                             ),
                           ),
                           if (shortOrderId.isNotEmpty) ...[
-                            const Text(
-                              ' • ',
-                              style: TextStyle(color: Color(0xFF3F3F46), fontSize: 10),
-                            ),
-                            Text(
-                              '#$shortOrderId',
-                              style: const TextStyle(
-                                color: Color(0xFF52525B),
-                                fontSize: 10.5,
-                                fontFamily: 'monospace',
-                              ),
-                            ),
+                            const Text(' • ', style: TextStyle(color: Color(0xFF3F3F46), fontSize: 10)),
+                            Text('#$shortOrderId', style: const TextStyle(color: Color(0xFF52525B), fontSize: 10.5, fontFamily: 'monospace')),
                           ],
                           if (timeStr.isNotEmpty) ...[
-                            const Text(
-                              ' • ',
-                              style: TextStyle(color: Color(0xFF3F3F46), fontSize: 10),
-                            ),
-                            Text(
-                              timeStr,
-                              style: const TextStyle(
-                                color: Color(0xFF52525B),
-                                fontSize: 10.5,
-                              ),
-                            ),
+                            const Text(' • ', style: TextStyle(color: Color(0xFF3F3F46), fontSize: 10)),
+                            Text(timeStr, style: const TextStyle(color: Color(0xFF52525B), fontSize: 10.5)),
                           ],
                         ],
                       ),
                     ],
                   ),
                 ),
-                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 8)),
-                // Amount and status
+                const SizedBox(width: 8),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisSize: MainAxisSize.min,
@@ -632,7 +1024,7 @@ class _CompactOrderCard extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    ConstrainedBox(constraints: const BoxConstraints(maxWidth: 3)),
+                    const SizedBox(height: 3),
                     _StatusBadge(status: item.status, isPaid: isPaid, isCompact: true),
                   ],
                 ),
@@ -695,7 +1087,7 @@ class _StatusBadge extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 9, color: text),
-            ConstrainedBox(constraints: const BoxConstraints(maxWidth: 3)),
+            const SizedBox(width: 3),
             Text(
               label,
               style: TextStyle(color: text, fontSize: 9.5, fontWeight: FontWeight.w500),
@@ -716,7 +1108,7 @@ class _StatusBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 11, color: text),
-          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 4)),
+          const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(color: text, fontSize: 10.5, fontWeight: FontWeight.w500),
@@ -756,7 +1148,7 @@ class _DetailRow extends StatelessWidget {
               fontSize: 12,
             ),
           ),
-          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 12)),
+          const SizedBox(width: 12),
           Flexible(
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -776,7 +1168,7 @@ class _DetailRow extends StatelessWidget {
                   ),
                 ),
                 if (canCopy && value.isNotEmpty) ...[
-                  ConstrainedBox(constraints: const BoxConstraints(maxWidth: 6)),
+                  const SizedBox(width: 6),
                   GestureDetector(
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: value));
@@ -832,7 +1224,7 @@ String _providerLabel(AppI18n t, String provider) {
     case 'duitku':
       return 'Duitku';
     case 'midtrans':
-      return 'Midtrans'; // Ditambahkan agar Midtrans muncul dengan rapi
+      return 'Midtrans';
     case 'google_play':
       return t.t('google_play');
     case 'app_store':
@@ -861,12 +1253,12 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         children: [
           const Icon(Icons.cloud_off_rounded, size: 30, color: Color(0xFF71717A)),
-          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 10)),
+          const SizedBox(height: 10),
           Text(
             t.t('request_failed'),
             style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w500),
           ),
-          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 14)),
+          const SizedBox(height: 14),
           SizedBox(
             height: 38,
             width: double.infinity,
