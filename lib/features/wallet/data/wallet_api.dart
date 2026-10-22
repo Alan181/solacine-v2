@@ -332,6 +332,32 @@ class WalletApi {
     final data = (map['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
     return (data['coins_balance'] as num?)?.toInt() ?? 0;
   }
+
+  // Endpoint untuk Menukar Koin ke Saldo Rupiah
+  Future<void> convertCoins({required int coinsToConvert}) async {
+    await _dio.post(
+      '/v1/wallet/convert',
+      data: {'coins_to_convert': coinsToConvert},
+    );
+  }
+
+  // Endpoint untuk Tarik Saldo (Withdraw ke DANA/GoPay)
+  Future<void> requestWithdraw({
+    required String walletType,
+    required String walletNumber,
+    required String accountName,
+    required double amountIdr,
+  }) async {
+    await _dio.post(
+      '/v1/wallet/withdraw',
+      data: {
+        'wallet_type': walletType,
+        'wallet_number': walletNumber,
+        'account_name': accountName,
+        'amount_idr': amountIdr,
+      },
+    );
+  }
 }
 
 final walletApiProvider = Provider<WalletApi>((ref) {
