@@ -11,6 +11,7 @@ import '../../ads/application/ads_providers.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/data/auth_api.dart';
 import '../data/rewards_api.dart';
+import '../../wallet/data/wallet_api.dart';
 import 'widgets/rewards_app_bar_header.dart';
 import 'widgets/rewards_coins_award_overlay.dart';
 import 'widgets/rewards_daily_checkin_section.dart';
@@ -315,11 +316,9 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
     if (_loadingTaskIds.contains(task.id)) return;
     final t = AppI18n.of(context);
 
-    // Deteksi apakah ini misi drama atau task biasa yang tidak butuh pending link 15 detik
     final dramaRegExp = RegExp(r'tonton.*?(\d+)', caseSensitive: false);
     final isDrama = task.type == 'drama' || dramaRegExp.hasMatch(task.title);
 
-    // Jika bukan drama dan pending link task belum selesai, abaikan
     if (!isDrama && _pendingLinkTaskId != task.id) return;
 
     _markTaskLoading(task.id, loading: true);
@@ -491,6 +490,192 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
     return parts.isNotEmpty ? parts.first : v;
   }
 
+  void _showConvertModal() {
+    final controller = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xff0c0c0e),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Tukar Koin ke Saldo Rupiah', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            const Text('Rate penukaran: 1 Koin = Rp 1 (Minimal 100 koin)', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Contoh: 1000',
+                hintStyle: const TextStyle(color: Colors.grey),
+                filled: true,
+                fillColor: const Color(0xff18181b),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+                onPressed: () async {
+                  final coins = int.tryParse(controller.text.trim()) ?? 0;
+                  if (coins < 100) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum penukaran adalah 100 koin')));
+                    return;
+                  }
+                  Navigator.pop(context);
+                  try {
+                    await ref.read(walletApiProvider).convertCoins(coinsToConvert: coins);
+                    final fresh = await ref.read(authApiProvider).me();
+                    await ref.read(authSessionProvider.notifier).setUser(fresh);
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Berhasil menukar koin ke saldo rupiah!')));
+                    setState(() {});
+                  } on DioException catch (e) {
+                    final msg = _messageFromDio(e);
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg.isNotEmpty ? msg : 'Gagal menukar koin')));
+                  }
+                },
+                child: const Text('Tukar Sekarang', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showWithdrawModal() {
+    String selectedWallet = 'DANA';
+    final numberController = TextEditingController();
+    final nameController = TextEditingController();
+    final amountController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xff0c0c0e),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Tarik Saldo Rupiah', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              const Text('Minimum penarikan adalah Rp 25.000', style: TextStyle(color: Colors.grey, fontSize: 12)),
+              const SizedBox(height: 16),
+              const Text('Pilih E-Wallet', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                dropdownColor: const Color(0xff18181b),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xff18181b),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'DANA', child: Text('DANA')),
+                  DropdownMenuItem(value: 'GOPAY', child: Text('GoPay')),
+                ],
+                onChanged: (val) {
+                  if (val != null) setModalState(() => selectedWallet = val);
+                },
+                value: selectedWallet,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: numberController,
+                keyboardType: TextInputType.phone,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Nomor Akun / HP (08xxxxxxxxxx)',
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: const Color(0xff18181b),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: nameController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Nama Pemilik Akun',
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: const Color(0xff18181b),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Jumlah Penarikan (Min. 25000)',
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: const Color(0xff18181b),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.rose, foregroundColor: Colors.white),
+                  onPressed: () async {
+                    final amount = double.tryParse(amountController.text.trim()) ?? 0.0;
+                    if (amount < 25000) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum penarikan adalah Rp 25.000')));
+                      return;
+                    }
+                    Navigator.pop(context);
+                    try {
+                      await ref.read(walletApiProvider).requestWithdraw(
+                            walletType: selectedWallet,
+                            walletNumber: numberController.text.trim(),
+                            accountName: nameController.text.trim(),
+                            amountIdr: amount,
+                          );
+                      final fresh = await ref.read(authApiProvider).me();
+                      await ref.read(authSessionProvider.notifier).setUser(fresh);
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permintaan penarikan berhasil dikirim!')));
+                      setState(() {});
+                    } on DioException catch (e) {
+                      final msg = _messageFromDio(e);
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg.isNotEmpty ? msg : 'Gagal mengajukan penarikan')));
+                    }
+                  },
+                  child: const Text('Kirim Permintaan', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppI18n.of(context);
@@ -499,6 +684,9 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
     final coins = (session?.user?['coins_balance'] as num?)?.toInt() ??
         (session?.user?['coins'] as num?)?.toInt() ??
         0;
+    
+    final cashBalance = (session?.user?['cash_balance'] as num?)?.toDouble() ?? 0.0;
+
     final lastCheckin = _dateOnly((session?.user?['last_checkin_date'] as String?) ?? '');
     final streak = (session?.user?['checkin_streak'] as num?)?.toInt() ?? 0;
     final todayLocal = DateTime.now().toIso8601String().split('T').first;
@@ -595,7 +783,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                                 _buildSummaryCards(
                                   context: context,
                                   coins: coins,
-                                  streak: streak,
+                                  cashBalance: cashBalance,
                                   todayReward: todayReward,
                                   claimedToday: claimedToday,
                                 ),
@@ -724,23 +912,20 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
   Widget _buildSummaryCards({
     required BuildContext context,
     required int coins,
-    required int streak,
+    required double cashBalance,
     required int todayReward,
     required bool claimedToday,
   }) {
     final t = AppI18n.of(context);
     final formattedCoins = NumberFormat('#,###').format(coins);
-    final streakDisplay = streak > 0 ? streak : 0;
-    final dayLabel = streakDisplay == 1
-        ? t.t('streak_day')
-        : (t.t('streak_days').contains('{') ? 'Days' : t.t('streak_days'));
+    final formattedCash = NumberFormat('#,###', 'id_ID').format(cashBalance);
 
     return SizedBox(
       height: 104,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. My Coins Balance
+          // 1. SALDO COIN + Tombol Tukar
           Expanded(
             child: Container(
               height: 104,
@@ -766,7 +951,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                               fit: BoxFit.scaleDown,
                               alignment: AlignmentDirectional.centerStart,
                               child: Text(
-                                t.t('my_coins_balance'),
+                                'SALDO COIN',
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.45),
                                   fontSize: 8.5,
@@ -777,18 +962,19 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Container(
-                            width: 18,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              color: const Color(0xff121215),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: const Color(0xff1f1f25)),
-                            ),
-                            child: Icon(
-                              Icons.toll_rounded,
-                              size: 10,
-                              color: Colors.white.withValues(alpha: 0.70),
+                          SizedBox(
+                            height: 20,
+                            child: ElevatedButton(
+                              onPressed: _showConvertModal,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.amber,
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(horizontal: 6),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                              ),
+                              child: const Text('Tukar', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
                             ),
                           ),
                         ],
@@ -820,12 +1006,12 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                     child: Align(
                       alignment: AlignmentDirectional.centerStart,
                       child: Text(
-                        t.t('available_coins_desc'),
+                        'Minimum Tukar 100 (1Coin = Rp1)',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.45),
-                          fontSize: 9.5,
+                          fontSize: 9.0,
                           height: 1.25,
                         ),
                       ),
@@ -836,7 +1022,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
             ),
           ),
           const SizedBox(width: 6),
-          // 2. Active Streak
+          // 2. SALDO RUPIAH + Tombol Tarik
           Expanded(
             child: Container(
               height: 104,
@@ -862,7 +1048,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                               fit: BoxFit.scaleDown,
                               alignment: AlignmentDirectional.centerStart,
                               child: Text(
-                                t.t('active_streak'),
+                                'SALDO RUPIAH',
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.45),
                                   fontSize: 8.5,
@@ -873,18 +1059,19 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Container(
-                            width: 18,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              color: const Color(0xff121215),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: const Color(0xff1f1f25)),
-                            ),
-                            child: const Icon(
-                              Icons.local_fire_department_rounded,
-                              size: 11,
-                              color: Color(0xfffb923c),
+                          SizedBox(
+                            height: 20,
+                            child: ElevatedButton(
+                              onPressed: _showWithdrawModal,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.rose,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 6),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                              ),
+                              child: const Text('Tarik', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
                             ),
                           ),
                         ],
@@ -897,30 +1084,14 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
                             alignment: AlignmentDirectional.centerStart,
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                Text(
-                                  '$streakDisplay',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                    height: 1.0,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  dayLabel,
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.55),
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.0,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              'Rp $formattedCash',
+                              style: const TextStyle(
+                                color: Colors.greenAccent,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                height: 1.0,
+                              ),
                             ),
                           ),
                         ),
@@ -932,12 +1103,12 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                     child: Align(
                       alignment: AlignmentDirectional.centerStart,
                       child: Text(
-                        t.t('consecutive_checkins_desc'),
+                        'Minimum Tarik 25.000 (Dana/Gopay)',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.45),
-                          fontSize: 9.5,
+                          fontSize: 9.0,
                           height: 1.25,
                         ),
                       ),
@@ -948,7 +1119,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
             ),
           ),
           const SizedBox(width: 6),
-          // 3. Today's Reward
+          // 3. Today's Reward (Asli)
           Expanded(
             child: Container(
               height: 104,
