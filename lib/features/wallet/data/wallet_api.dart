@@ -207,7 +207,7 @@ class CoinConversionDto {
     return CoinConversionDto(
       id: (json['id'] as num?)?.toInt() ?? 0,
       coinsConverted: (json['coins_converted'] as num?)?.toInt() ?? 0,
-      cashReceived: (json['cash_received'] as num?)?.toDbl() ?? 0,
+      cashReceived: (json['cash_received'] as num?)?.toDouble() ?? 0,
       createdAt: DateTime.tryParse((json['created_at'] as String?) ?? ''),
     );
   }
