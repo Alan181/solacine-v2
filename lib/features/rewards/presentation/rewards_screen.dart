@@ -640,7 +640,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.rose, foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
                   onPressed: () async {
                     final amount = double.tryParse(amountController.text.trim()) ?? 0.0;
                     if (amount < 25000) {
@@ -1064,7 +1064,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                             child: ElevatedButton(
                               onPressed: _showWithdrawModal,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.rose,
+                                backgroundColor: Colors.red,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(horizontal: 6),
                                 minimumSize: Size.zero,
