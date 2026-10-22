@@ -507,7 +507,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
           children: [
             const Text('Tukar Koin ke Saldo Rupiah', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            const Text('Rate penukaran: 1 Koin = Rp 1 (Minimal 100 koin)', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            const Text('Rate: 10 Koin = Rp 1 (Minimal 100 Koin)', style: TextStyle(color: Colors.grey, fontSize: 12)),
             const SizedBox(height: 16),
             TextField(
               controller: controller,
@@ -529,7 +529,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                 onPressed: () async {
                   final coins = int.tryParse(controller.text.trim()) ?? 0;
                   if (coins < 100) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum penukaran adalah 100 koin')));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum Penukaran 100 Koin')));
                     return;
                   }
                   Navigator.pop(context);
@@ -577,7 +577,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
             children: [
               const Text('Tarik Saldo Rupiah', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
-              const Text('Minimum penarikan adalah Rp 25.000', style: TextStyle(color: Colors.grey, fontSize: 12)),
+              const Text('Minimum Penarikan Rp 25.000', style: TextStyle(color: Colors.grey, fontSize: 12)),
               const SizedBox(height: 16),
               const Text('Pilih E-Wallet', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
@@ -644,7 +644,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                   onPressed: () async {
                     final amount = double.tryParse(amountController.text.trim()) ?? 0.0;
                     if (amount < 25000) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum penarikan adalah Rp 25.000')));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum Penarikan Rp 25.000')));
                       return;
                     }
                     Navigator.pop(context);
@@ -712,7 +712,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
       if (context.canPop()) {
         context.pop();
       } else {
-        context.go('/profile');
+        context.go('/reels');
       }
     }
 
@@ -876,7 +876,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  t.t('reward_center_desc'),
+                  'Claim hadiah anda hari ini, Dapatkan coin yang bisa di tukar ke DANA & GOPAY.',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.50),
                     fontSize: 11,
@@ -892,9 +892,9 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
           SizedBox(
             height: 32,
             child: FilledButton.icon(
-              onPressed: () => context.push('/recharge'),
+              onPressed: () => context.push('/purchase-history'),
               icon: const Icon(Icons.account_balance_wallet_rounded, size: 13),
-              label: Text(t.t('top_up_coins')),
+              label: Text('Riwayat'),
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: const Color(0xff09090b),
@@ -1006,7 +1006,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                     child: Align(
                       alignment: AlignmentDirectional.centerStart,
                       child: Text(
-                        'Minimum Tukar 100 (1Coin = Rp1)',
+                        'Rate: 10 Coin = Rp 1',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -1103,7 +1103,7 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                     child: Align(
                       alignment: AlignmentDirectional.centerStart,
                       child: Text(
-                        'Minimum Tarik 25.000 (Dana/Gopay)',
+                        'Tarik ke DANA & GOPAY',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
