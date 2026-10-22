@@ -189,6 +189,63 @@ class CoinTransactionDto {
   }
 }
 
+// DTO untuk Riwayat Konversi Koin
+class CoinConversionDto {
+  const CoinConversionDto({
+    required this.id,
+    required this.coinsConverted,
+    required this.cashReceived,
+    required this.createdAt,
+  });
+
+  final int id;
+  final int coinsConverted;
+  final num cashReceived;
+  final DateTime? createdAt;
+
+  factory CoinConversionDto.fromJson(Map<String, dynamic> json) {
+    return CoinConversionDto(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      coinsConverted: (json['coins_converted'] as num?)?.toInt() ?? 0,
+      cashReceived: (json['cash_received'] as num?)?.toDbl() ?? 0,
+      createdAt: DateTime.tryParse((json['created_at'] as String?) ?? ''),
+    );
+  }
+}
+
+// DTO untuk Riwayat Penarikan Saldo (Withdraw)
+class WithdrawRequestDto {
+  const WithdrawRequestDto({
+    required this.id,
+    required this.amountIdr,
+    required this.walletType,
+    required this.walletNumber,
+    required this.accountName,
+    required this.status,
+    required this.createdAt,
+  });
+
+  final int id;
+  final num amountIdr;
+  final String walletType;
+  final String walletNumber;
+  final String accountName;
+  final String status;
+  final DateTime? createdAt;
+
+  factory WithdrawRequestDto.fromJson(Map<String, dynamic> json) {
+    return WithdrawRequestDto(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      amountIdr: (json['amount_idr'] as num?)?.toDouble() ?? 0,
+      walletType: (json['wallet_type'] as String?) ?? '',
+      walletNumber: (json['wallet_number'] as String?) ?? '',
+      accountName: (json['account_name'] as String?) ?? '',
+      status: (json['status'] as String?) ?? 'pending',
+      createdAt: DateTime.tryParse((json['created_at'] as String?) ?? ''),
+    );
+  }
+}
+
 class CheckoutDto {
   const CheckoutDto({
     required this.paymentOrderId,
@@ -286,6 +343,34 @@ class WalletApi {
     final data = (map['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
     final raw = data['items'];
     final items = raw is List ? raw.whereType<Map>().map((e) => CoinTransactionDto.fromJson(e.cast<String, dynamic>())).toList() : <CoinTransactionDto>[];
+    final pagination = WalletPagination.fromJson((data['pagination'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{});
+    return WalletPage(items: items, pagination: pagination);
+  }
+
+  // Ambil Riwayat Konversi Koin
+  Future<WalletPage<CoinConversionDto>> coinConversions({int page = 1, int perPage = 20}) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/v1/wallet/conversions',
+      queryParameters: {'page': page, 'per_page': perPage},
+    );
+    final map = res.data ?? <String, dynamic>{};
+    final data = (map['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+    final raw = data['items'];
+    final items = raw is List ? raw.whereType<Map>().map((e) => CoinConversionDto.fromJson(e.cast<String, dynamic>())).toList() : <CoinConversionDto>[];
+    final pagination = WalletPagination.fromJson((data['pagination'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{});
+    return WalletPage(items: items, pagination: pagination);
+  }
+
+  // Ambil Riwayat Penarikan Saldo (Withdraw)
+  Future<WalletPage<WithdrawRequestDto>> withdrawRequestsHistory({int page = 1, int perPage = 20}) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/v1/wallet/withdrawals',
+      queryParameters: {'page': page, 'per_page': perPage},
+    );
+    final map = res.data ?? <String, dynamic>{};
+    final data = (map['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+    final raw = data['items'];
+    final items = raw is List ? raw.whereType<Map>().map((e) => WithdrawRequestDto.fromJson(e.cast<String, dynamic>())).toList() : <WithdrawRequestDto>[];
     final pagination = WalletPagination.fromJson((data['pagination'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{});
     return WalletPage(items: items, pagination: pagination);
   }
