@@ -14,6 +14,7 @@ import '../data/rewards_api.dart';
 import '../../wallet/data/wallet_api.dart';
 import 'widgets/rewards_app_bar_header.dart';
 import 'widgets/rewards_coins_award_overlay.dart';
+import 'widgets/rewards_success_overlay.dart'; // <-- Import file baru yang barusan dibuat
 import 'widgets/rewards_daily_checkin_section.dart';
 import 'widgets/rewards_loading_error_body.dart';
 import 'widgets/rewards_tasks_list.dart';
@@ -127,19 +128,59 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
 
   Future<void> _showAwardOverlay(int coins) async {
     if (!mounted || coins <= 0) return;
+    
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    if (!mounted) return;
+
     try {
       await showGeneralDialog<void>(
         context: context,
+        useRootNavigator: true,
         barrierDismissible: true,
         barrierLabel: 'Dismiss',
         barrierColor: Colors.black.withValues(alpha: 0.65),
         transitionDuration: const Duration(milliseconds: 250),
-        pageBuilder: (context, animation, secondaryAnimation) {
+        pageBuilder: (dialogContext, animation, secondaryAnimation) {
           return RewardsCoinsAwardOverlay(coins: coins);
         },
       );
     } catch (e) {
       debugPrint('Award overlay display error: $e');
+    }
+  }
+
+  // Fungsi helper untuk memanggil RewardsSuccessOverlay dari file terpisah
+  Future<void> _showSuccessOverlay({
+    required String title,
+    required String subtitle,
+    required String mainValue,
+    required IconData icon,
+    required Color accentColor,
+  }) async {
+    if (!mounted) return;
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    if (!mounted) return;
+
+    try {
+      await showGeneralDialog<void>(
+        context: context,
+        useRootNavigator: true,
+        barrierDismissible: true,
+        barrierLabel: 'Dismiss',
+        barrierColor: Colors.black.withValues(alpha: 0.65),
+        transitionDuration: const Duration(milliseconds: 250),
+        pageBuilder: (dialogContext, animation, secondaryAnimation) {
+          return RewardsSuccessOverlay(
+            title: title,
+            subtitle: subtitle,
+            mainValue: mainValue,
+            icon: icon,
+            accentColor: accentColor,
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint('Success overlay display error: $e');
     }
   }
 
@@ -538,7 +579,15 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                     final fresh = await ref.read(authApiProvider).me();
                     await ref.read(authSessionProvider.notifier).setUser(fresh);
                     if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Berhasil menukar koin ke saldo rupiah!')));
+                    
+                    // Panggil Overlay Sukses Kustom
+                    await _showSuccessOverlay(
+                      title: 'Penukaran Berhasil!',
+                      mainValue: '$coins Koin',
+                      subtitle: 'Berhasil ditukar menjadi saldo Rupiah.',
+                      icon: Icons.toll_rounded,
+                      accentColor: const Color(0xfffef08a),
+                    );
                     setState(() {});
                   } on DioException catch (e) {
                     final msg = _messageFromDio(e);
@@ -658,7 +707,15 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                       final fresh = await ref.read(authApiProvider).me();
                       await ref.read(authSessionProvider.notifier).setUser(fresh);
                       if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permintaan penarikan berhasil dikirim!')));
+                      
+                      // Panggil Overlay Sukses Kustom
+                      await _showSuccessOverlay(
+                        title: 'Penarikan Diajukan!',
+                        mainValue: 'Rp ${NumberFormat('#,###', 'id_ID').format(amount)}',
+                        subtitle: 'Permintaan ke $selectedWallet berhasil dikirim.',
+                        icon: Icons.payments_rounded,
+                        accentColor: Colors.greenAccent,
+                      );
                       setState(() {});
                     } on DioException catch (e) {
                       final msg = _messageFromDio(e);
