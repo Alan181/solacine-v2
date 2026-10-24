@@ -26,14 +26,6 @@ class _RewardsCoinsAwardOverlayState extends State<RewardsCoinsAwardOverlay>
     ]).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
     _fade = CurvedAnimation(parent: _c, curve: Curves.easeOut);
     _c.forward();
-
-    // Auto dismiss after 4 seconds if not dismissed by user
-    Future.delayed(const Duration(milliseconds: 4000), () {
-      if (!mounted) return;
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-    });
   }
 
   @override
