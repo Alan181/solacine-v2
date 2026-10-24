@@ -14,84 +14,81 @@ import '../features/notifications/application/push_token_registrar.dart';
 import '../features/ads/application/ads_initializer.dart';
 
 class DrameReelApp extends ConsumerWidget {
-  const DrameReelApp({super.key});
+  Const DrameReelApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.watch(appRouterProvider);
-    final locale = ref.watch(appLocaleProvider).valueOrNull;
-    final bootstrap = ref.watch(appBootstrapProvider).valueOrNull;
+    Final router = ref.watch(appRouterProvider);
+    Final locale = ref.watch(appLocaleProvider).valueOrNull;
+    Final bootstrap = ref.watch(appBootstrapProvider).valueOrNull;
 
-    final List<Locale> serverLocales = (bootstrap?.languages.isNotEmpty ?? false)
+    Final List<Locale> serverLocales = (bootstrap?.languages.isNotEmpty ?? false)
         ? bootstrap!.languages.map((e) => Locale(e.code)).toList()
         : [];
 
-    const fallbackLocales = [Locale('id'), Locale('en'), Locale('ar')];
-    final supportedLocales = <Locale>[
+    Const fallbackLocales = [Locale('id'), Locale('en'), Locale('ar')];
+    Final supportedLocales = <Locale>[
       ...serverLocales,
-      for (final l in fallbackLocales)
-        if (!serverLocales.any((s) => s.languageCode == l.languageCode)) l,
+      For (final l in fallbackLocales)
+        If (!serverLocales.any((s) => s.languageCode == l.languageCode)) l,
     ];
 
-    final Locale effectiveLocale;
-    if (locale != null) {
-      effectiveLocale = locale;
+    // 👉 MODIFIKASI DI SINI:
+    // Urutan prioritas: 
+    // 1. Pilihan manual pengguna (locale dari provider/shared_preferences)
+    // 2. Jika belum pernah diatur, paksa JADI Bahasa Indonesia ('id') sebagai default mutlak.
+    Final Locale effectiveLocale;
+    If (locale != null) {
+      EffectiveLocale = locale;
     } else {
-      final sysLang = PlatformDispatcher.instance.locale.languageCode.toLowerCase();
-      if (sysLang.startsWith('ar')) {
-        effectiveLocale = const Locale('ar');
-      } else if (sysLang.startsWith('id')) {
-        effectiveLocale = const Locale('id');
-      } else if (serverLocales.isNotEmpty) {
-        effectiveLocale = serverLocales.first;
-      } else {
-        effectiveLocale = const Locale('id');
-      }
+      // Selalu set default ke 'id' (Bahasa Indonesia)
+      EffectiveLocale = const Locale('id');
     }
-    final isArabic = effectiveLocale.languageCode.toLowerCase().startsWith('ar');
-    final font = isArabic ? 'Almarai' : null;
-    final baseLight = buildLightTheme(fontFamily: font);
-    final baseDark = buildDarkTheme(fontFamily: font);
-    final lightTheme = baseLight;
-    final darkTheme = baseDark;
 
-    const overlay = SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      statusBarBrightness: Brightness.dark,
-      systemNavigationBarColor: Colors.black,
-      systemNavigationBarDividerColor: Colors.transparent,
-      systemNavigationBarIconBrightness: Brightness.light,
-      systemNavigationBarContrastEnforced: false,
+    Final isArabic = effectiveLocale.languageCode.toLowerCase().startsWith('ar');
+    Final font = isArabic ? 'Almarai' : null;
+    Final baseLight = buildLightTheme(fontFamily: font);
+    Final baseDark = buildDarkTheme(fontFamily: font);
+    Final lightTheme = baseLight;
+    Final darkTheme = baseDark;
+
+    Const overlay = SystemUiOverlayStyle(
+      StatusBarColor: Colors.transparent,
+      StatusBarIconBrightness: Brightness.light,
+      StatusBarBrightness: Brightness.dark,
+      SystemNavigationBarColor: Colors.black,
+      SystemNavigationBarDividerColor: Colors.transparent,
+      SystemNavigationBarIconBrightness: Brightness.light,
+      SystemNavigationBarContrastEnforced: false,
     );
     SystemChrome.setSystemUIOverlayStyle(overlay);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-    return MaterialApp.router(
-      title: 'Solacine',
-      debugShowCheckedModeBanner: false,
-      theme: lightTheme,
-      darkTheme: darkTheme,
-      themeMode: ThemeMode.system,
-      builder: (context, child) {
-        return PushTokenRegistrar(
-          child: AdsInitializer(
-            child: AnnotatedRegion<SystemUiOverlayStyle>(
-              value: overlay,
-              child: child ?? const SizedBox.shrink(),
+    Return MaterialApp.router(
+      Title: 'Solacine',
+      DebugShowCheckedModeBanner: false,
+      Theme: lightTheme,
+      DarkTheme: darkTheme,
+      ThemeMode: ThemeMode.system,
+      Builder: (context, child) {
+        Return PushTokenRegistrar(
+          Child: AdsInitializer(
+            Child: AnnotatedRegion<SystemUiOverlayStyle>(
+              Value: overlay,
+              Child: child ?? const SizedBox.shrink(),
             ),
           ),
         );
       },
-      locale: effectiveLocale,
-      supportedLocales: supportedLocales,
-      localizationsDelegates: const [
+      Locale: effectiveLocale,
+      SupportedLocales: supportedLocales,
+      LocalizationsDelegates: const [
         AppI18nDelegate(),
         GlobalMaterialLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
       ],
-      routerConfig: router,
+      RouterConfig: router,
     );
   }
 }
