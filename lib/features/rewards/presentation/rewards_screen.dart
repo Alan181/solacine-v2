@@ -708,7 +708,6 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                           await ref.read(authSessionProvider.notifier).setUser(fresh);
                           if (!mounted) return;
                           
-                          // Panggil Overlay Sukses bahwa penarikan sedang diajukan
                           await _showSuccessOverlay(
                             title: 'Penarikan Diajukan!',
                             mainValue: 'Rp ${NumberFormat('#,###', 'id_ID').format(amount)}',
@@ -1285,13 +1284,14 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
   }
 }
 
+// Logika Check-in Murni Kalender Mingguan (Senin = Hari 1, Minggu = Hari 7)
 int _dayIndexForUi({required int streak, required bool claimedToday, required int daysCount}) {
   final maxDays = daysCount.clamp(1, 7);
-  final s = streak < 0 ? 0 : streak;
-
-  final lastClaimedDay = s <= 0 ? 1 : (((s - 1) % maxDays) + 1);
-  if (claimedToday) return lastClaimedDay;
-
-  final nextClaimDay = ((s % maxDays) + 1);
-  return nextClaimDay;
+  
+  // Mengambil hari aktual saat ini (1 = Senin, 2 = Selasa, ..., 7 = Minggu)
+  final now = DateTime.now();
+  int currentWeekday = now.weekday; // Di Dart, Senin adalah 1 dan Minggu adalah 7
+  
+  // Batasi agar tidak melebihi jumlah hari maksimal pada schedule
+  return currentWeekday > maxDays ? maxDays : currentWeekday;
 }
