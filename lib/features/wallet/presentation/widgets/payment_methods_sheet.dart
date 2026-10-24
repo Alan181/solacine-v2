@@ -363,7 +363,7 @@ class PaymentMethodsSheet extends StatelessWidget {
                             'flutterwave' => 'assets/images/payments/flutterwave.png',
                             'razorpay' => 'assets/images/payments/razorpay.png',
                             'xendit' => 'assets/images/daily_checkin_top_ic.png',
-                            'duitku' => 'assets/images/daily_checkin_top_ic.png',
+                            'duitku' => 'assets/images/payments/duitku.png',
                             'midtrans' => 'assets/images/daily_checkin_top_ic.png', // Menggunakan aset yang tersedia
                             _ => null,
                           };
