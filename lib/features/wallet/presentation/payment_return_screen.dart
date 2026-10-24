@@ -67,10 +67,17 @@ class _PaymentReturnScreenState extends ConsumerState<PaymentReturnScreen> {
     }
 
     String? finalStatus;
+    bool isMembershipOrder = false;
     for (var i = 0; i < 10; i++) {
       try {
         final st = await ref.read(walletApiProvider).orderStatus(paymentOrderId: orderId);
         finalStatus = st.status.trim().toLowerCase();
+        
+        // Periksa apakah item berupa membership berdasarkan data order jika tersedia
+        if (st.itemType != null && st.itemType!.toLowerCase().contains('membership')) {
+          isMembershipOrder = true;
+        }
+
         if (finalStatus == 'paid') break;
         if (finalStatus == 'failed' || finalStatus == 'canceled' || finalStatus == 'cancel') break;
       } catch (_) {}
@@ -89,7 +96,20 @@ class _PaymentReturnScreenState extends ConsumerState<PaymentReturnScreen> {
         await prefs.remove(_kPendingGatewayOrderIdKey);
       } catch (_) {}
       if (!mounted) return;
-      await showPaymentSuccessDialog(context);
+
+      // Tampilkan dialog sukses dengan tipe yang sesuai, arahkan ke wallet setelah tombol OK ditekan
+      await showPaymentSuccessDialog(
+        context,
+        type: isMembershipOrder ? PaymentSuccessType.membership : PaymentSuccessType.coins,
+        onConfirm: () {
+          if (mounted) context.go('/wallet');
+        },
+      );
+
+      if (mounted) {
+        context.go('/wallet');
+      }
+      return;
     } else if (finalStatus == 'failed' || finalStatus == 'canceled' || finalStatus == 'cancel') {
       messenger.showSnackBar(SnackBar(content: Text(t.t('payment_failed'))));
       try {
