@@ -103,7 +103,11 @@ class RewardsDailyCheckinSection extends StatelessWidget {
               itemBuilder: (context, idx) {
                 final d = idx + 1;
                 final coins = items[idx];
-                final isClaimed = d < dayIndex || (d == dayIndex && claimedToday);
+                
+                // PERBAIKAN DI SINI:
+                // Hanya hari ini yang berstatus 'claimed' jika tombol claim hari ini sudah ditekan (claimedToday).
+                // Hari-hari lain tidak otomatis hijau meskipun angkanya di bawah dayIndex.
+                final isClaimed = (d == dayIndex && claimedToday);
                 final isActiveToday = d == dayIndex && !claimedToday;
                 final isLast = d == items.length;
 
@@ -237,7 +241,7 @@ class _CheckinCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xff121215),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xff1f1f25)),
+          border: Border.all(color: const Color(0xff10b981).withValues(alpha: 0.3)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -332,7 +336,7 @@ class _CheckinCard extends StatelessWidget {
       );
     }
 
-    // Future / locked day
+    // Future / passed / locked day
     return Container(
       width: 62,
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
