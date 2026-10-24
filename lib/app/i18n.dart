@@ -248,7 +248,7 @@ class AppI18n {
     'membership_plan_monthly': 'Paket bulanan',
     'membership_plan_yearly': 'Paket tahunan',
     'membership_subscribe_to': 'Berlangganan {plan}',
-    'membership_promo_line': '{period} pertama ${promo}, lalu ${original}/{period}',
+    'membership_promo_line': r'Pertama {period} ${promo}, lalu ${original}/{period}',
     'membership_autorenew_note': 'Perpanjangan otomatis. Batalkan kapan saja.',
     'extend': 'Perpanjang',
     'edit_profile': 'Edit profil',
