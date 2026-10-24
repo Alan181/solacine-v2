@@ -14,7 +14,7 @@ import '../data/rewards_api.dart';
 import '../../wallet/data/wallet_api.dart';
 import 'widgets/rewards_app_bar_header.dart';
 import 'widgets/rewards_coins_award_overlay.dart';
-import 'widgets/rewards_success_overlay.dart'; // <-- Import file baru yang barusan dibuat
+import 'widgets/rewards_success_overlay.dart';
 import 'widgets/rewards_daily_checkin_section.dart';
 import 'widgets/rewards_loading_error_body.dart';
 import 'widgets/rewards_tasks_list.dart';
@@ -149,7 +149,6 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
     }
   }
 
-  // Fungsi helper untuk memanggil RewardsSuccessOverlay dari file terpisah
   Future<void> _showSuccessOverlay({
     required String title,
     required String subtitle,
@@ -580,7 +579,6 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
                     await ref.read(authSessionProvider.notifier).setUser(fresh);
                     if (!mounted) return;
                     
-                    // Panggil Overlay Sukses Kustom
                     await _showSuccessOverlay(
                       title: 'Penukaran Berhasil!',
                       mainValue: '$coins Koin',
@@ -618,115 +616,119 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> with WidgetsBindi
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Tarik Saldo Rupiah', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              const Text('Minimum Penarikan Rp 25.000', style: TextStyle(color: Colors.grey, fontSize: 12)),
-              const SizedBox(height: 16),
-              const Text('Pilih E-Wallet', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              DropdownButtonFormField<String>(
-                dropdownColor: const Color(0xff18181b),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: const Color(0xff18181b),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'DANA', child: Text('DANA')),
-                  DropdownMenuItem(value: 'GOPAY', child: Text('GoPay')),
-                ],
-                onChanged: (val) {
-                  if (val != null) setModalState(() => selectedWallet = val);
-                },
-                value: selectedWallet,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: numberController,
-                keyboardType: TextInputType.phone,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Nomor Akun / HP (08xxxxxxxxxx)',
-                  hintStyle: const TextStyle(color: Colors.grey),
-                  filled: true,
-                  fillColor: const Color(0xff18181b),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: nameController,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Nama Pemilik Akun',
-                  hintStyle: const TextStyle(color: Colors.grey),
-                  filled: true,
-                  fillColor: const Color(0xff18181b),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Jumlah Penarikan (Min. 25000)',
-                  hintStyle: const TextStyle(color: Colors.grey),
-                  filled: true,
-                  fillColor: const Color(0xff18181b),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                  onPressed: () async {
-                    final amount = double.tryParse(amountController.text.trim()) ?? 0.0;
-                    if (amount < 25000) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum Penarikan Rp 25.000')));
-                      return;
-                    }
-                    Navigator.pop(context);
-                    try {
-                      await ref.read(walletApiProvider).requestWithdraw(
-                            walletType: selectedWallet,
-                            walletNumber: numberController.text.trim(),
-                            accountName: nameController.text.trim(),
-                            amountIdr: amount,
+        builder: (context, setModalState) => SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Tarik Saldo Rupiah', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  const Text('Minimum Penarikan Rp 25.000', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  const SizedBox(height: 16),
+                  const Text('Pilih E-Wallet', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    dropdownColor: const Color(0xff18181b),
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: const Color(0xff18181b),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'DANA', child: Text('DANA')),
+                      DropdownMenuItem(value: 'GOPAY', child: Text('GoPay')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setModalState(() => selectedWallet = val);
+                    },
+                    value: selectedWallet,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: numberController,
+                    keyboardType: TextInputType.phone,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Nomor Akun / HP (08xxxxxxxxxx)',
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      filled: true,
+                      fillColor: const Color(0xff18181b),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: nameController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Nama Pemilik Akun',
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      filled: true,
+                      fillColor: const Color(0xff18181b),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Jumlah Penarikan (Min. 25000)',
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      filled: true,
+                      fillColor: const Color(0xff18181b),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                      onPressed: () async {
+                        final amount = double.tryParse(amountController.text.trim()) ?? 0.0;
+                        if (amount < 25000) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum Penarikan Rp 25.000')));
+                          return;
+                        }
+                        Navigator.pop(context);
+                        try {
+                          await ref.read(walletApiProvider).requestWithdraw(
+                                walletType: selectedWallet,
+                                walletNumber: numberController.text.trim(),
+                                accountName: nameController.text.trim(),
+                                amountIdr: amount,
+                              );
+                          final fresh = await ref.read(authApiProvider).me();
+                          await ref.read(authSessionProvider.notifier).setUser(fresh);
+                          if (!mounted) return;
+                          
+                          // Panggil Overlay Sukses bahwa penarikan sedang diajukan
+                          await _showSuccessOverlay(
+                            title: 'Penarikan Diajukan!',
+                            mainValue: 'Rp ${NumberFormat('#,###', 'id_ID').format(amount)}',
+                            subtitle: 'Permintaan penarikan ke $selectedWallet sedang diproses.',
+                            icon: Icons.payments_rounded,
+                            accentColor: Colors.greenAccent,
                           );
-                      final fresh = await ref.read(authApiProvider).me();
-                      await ref.read(authSessionProvider.notifier).setUser(fresh);
-                      if (!mounted) return;
-                      
-                      // Panggil Overlay Sukses Kustom
-                      await _showSuccessOverlay(
-                        title: 'Penarikan Diajukan!',
-                        mainValue: 'Rp ${NumberFormat('#,###', 'id_ID').format(amount)}',
-                        subtitle: 'Permintaan ke $selectedWallet berhasil dikirim.',
-                        icon: Icons.payments_rounded,
-                        accentColor: Colors.greenAccent,
-                      );
-                      setState(() {});
-                    } on DioException catch (e) {
-                      final msg = _messageFromDio(e);
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg.isNotEmpty ? msg : 'Gagal mengajukan penarikan')));
-                    }
-                  },
-                  child: const Text('Kirim Permintaan', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
+                          setState(() {});
+                        } on DioException catch (e) {
+                          final msg = _messageFromDio(e);
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg.isNotEmpty ? msg : 'Gagal mengajukan penarikan')));
+                        }
+                      },
+                      child: const Text('Kirim Permintaan', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
