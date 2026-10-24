@@ -14,81 +14,77 @@ import '../features/notifications/application/push_token_registrar.dart';
 import '../features/ads/application/ads_initializer.dart';
 
 class DrameReelApp extends ConsumerWidget {
-  Const DrameReelApp({super.key});
+  const DrameReelApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    Final router = ref.watch(appRouterProvider);
-    Final locale = ref.watch(appLocaleProvider).valueOrNull;
-    Final bootstrap = ref.watch(appBootstrapProvider).valueOrNull;
+    final router = ref.watch(appRouterProvider);
+    final locale = ref.watch(appLocaleProvider).valueOrNull;
+    final bootstrap = ref.watch(appBootstrapProvider).valueOrNull;
 
-    Final List<Locale> serverLocales = (bootstrap?.languages.isNotEmpty ?? false)
+    final List<Locale> serverLocales = (bootstrap?.languages.isNotEmpty ?? false)
         ? bootstrap!.languages.map((e) => Locale(e.code)).toList()
         : [];
 
-    Const fallbackLocales = [Locale('id'), Locale('en'), Locale('ar')];
-    Final supportedLocales = <Locale>[
+    const fallbackLocales = [Locale('id'), Locale('en'), Locale('ar')];
+    final supportedLocales = <Locale>[
       ...serverLocales,
-      For (final l in fallbackLocales)
-        If (!serverLocales.any((s) => s.languageCode == l.languageCode)) l,
+      for (final l in fallbackLocales)
+        if (!serverLocales.any((s) => s.languageCode == l.languageCode)) l,
     ];
 
-    // 👉 MODIFIKASI DI SINI:
-    // Urutan prioritas: 
-    // 1. Pilihan manual pengguna (locale dari provider/shared_preferences)
-    // 2. Jika belum pernah diatur, paksa JADI Bahasa Indonesia ('id') sebagai default mutlak.
-    Final Locale effectiveLocale;
-    If (locale != null) {
-      EffectiveLocale = locale;
+    // Memastikan effectiveLocale terdefinisi dengan benar (Default ke 'id')
+    final Locale effectiveLocale;
+    if (locale != null) {
+      effectiveLocale = locale;
     } else {
-      // Selalu set default ke 'id' (Bahasa Indonesia)
-      EffectiveLocale = const Locale('id');
+      effectiveLocale = const Locale('id');
     }
 
-    Final isArabic = effectiveLocale.languageCode.toLowerCase().startsWith('ar');
-    Final font = isArabic ? 'Almarai' : null;
-    Final baseLight = buildLightTheme(fontFamily: font);
-    Final baseDark = buildDarkTheme(fontFamily: font);
-    Final lightTheme = baseLight;
-    Final darkTheme = baseDark;
+    final isArabic = effectiveLocale.languageCode.toLowerCase().startsWith('ar');
+    final font = isArabic ? 'Almarai' : null;
+    final baseLight = buildLightTheme(fontFamily: font);
+    final baseDark = buildDarkTheme(fontFamily: font);
+    final lightTheme = baseLight;
+    final darkTheme = baseDark;
 
-    Const overlay = SystemUiOverlayStyle(
-      StatusBarColor: Colors.transparent,
-      StatusBarIconBrightness: Brightness.light,
-      StatusBarBrightness: Brightness.dark,
-      SystemNavigationBarColor: Colors.black,
-      SystemNavigationBarDividerColor: Colors.transparent,
-      SystemNavigationBarIconBrightness: Brightness.light,
-      SystemNavigationBarContrastEnforced: false,
+    const overlay = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.black,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarContrastEnforced: false,
     );
     SystemChrome.setSystemUIOverlayStyle(overlay);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-    Return MaterialApp.router(
-      Title: 'Solacine',
-      DebugShowCheckedModeBanner: false,
-      Theme: lightTheme,
-      DarkTheme: darkTheme,
-      ThemeMode: ThemeMode.system,
-      Builder: (context, child) {
-        Return PushTokenRegistrar(
-          Child: AdsInitializer(
-            Child: AnnotatedRegion<SystemUiOverlayStyle>(
-              Value: overlay,
-              Child: child ?? const SizedBox.shrink(),
+    return MaterialApp.router(
+      title: 'Solacine',
+      debugShowCheckedModeBanner: false,
+      theme: lightTheme,
+      darkTheme: darkTheme,
+      themeMode: ThemeMode.system,
+      builder: (context, child) {
+        return PushTokenRegistrar(
+          child: AdsInitializer(
+            child: AnnotatedRegion<SystemUiOverlayStyle>(
+              value: overlay,
+              child: child ?? const SizedBox.shrink(),
             ),
           ),
         );
       },
-      Locale: effectiveLocale,
-      SupportedLocales: supportedLocales,
-      LocalizationsDelegates: const [
+      locale: effectiveLocale,
+      supportedLocales: supportedLocales,
+      localizationsDelegates: const [
         AppI18nDelegate(),
         GlobalMaterialLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
       ],
-      RouterConfig: router,
+      routerConfig: router,
     );
   }
 }
