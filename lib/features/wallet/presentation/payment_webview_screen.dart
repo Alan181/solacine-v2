@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../../../app/i18n.dart';
 import '../data/wallet_api.dart';
+import 'payment_success_dialog.dart';
 
 class PaymentWebViewScreen extends ConsumerStatefulWidget {
   const PaymentWebViewScreen({
@@ -96,9 +97,16 @@ class _PaymentWebViewScreenState extends ConsumerState<PaymentWebViewScreen> {
             final scheme = uri?.scheme.toLowerCase() ?? '';
             final isCustomScheme = scheme.isNotEmpty && scheme != 'http' && scheme != 'https' && scheme != 'about';
 
-            if (isCustomScheme ||
-                lower.contains('/payment-return') ||
-                lower.contains('/payments/orders/')) {
+            // Jangan cegat custom scheme agar aplikasi e-wallet tidak tertutup prematur
+            if (isCustomScheme) {
+              return NavigationDecision.navigate;
+            }
+
+            if (lower.contains('/payment-return') ||
+                lower.contains('status=success') ||
+                lower.contains('status=paid') ||
+                lower.contains('status=cancel') ||
+                lower.contains('status=failed')) {
               _checkInterceptUrl(request.url);
               return NavigationDecision.prevent;
             }
@@ -164,6 +172,15 @@ class _PaymentWebViewScreenState extends ConsumerState<PaymentWebViewScreen> {
         final st = await ref.read(walletApiProvider).orderStatus(paymentOrderId: orderId);
         status = st.status.trim().toLowerCase();
         if (status == 'paid') {
+          // Tampilkan dialog sukses terlebih dahulu, tutup webview setelah user klik OK
+          if (mounted) {
+            final isMembership = widget.title.toLowerCase().contains('vip') ||
+                widget.title.toLowerCase().contains('membership');
+            await showPaymentSuccessDialog(
+              context,
+              type: isMembership ? PaymentSuccessType.membership : PaymentSuccessType.coins,
+            );
+          }
           _finish(true);
           return;
         }
@@ -177,6 +194,14 @@ class _PaymentWebViewScreenState extends ConsumerState<PaymentWebViewScreen> {
 
     // If still in processing or indeterminate, return true if redirected from success
     if (status == 'paid' || lower.contains('status=success')) {
+      if (mounted) {
+        final isMembership = widget.title.toLowerCase().contains('vip') ||
+            widget.title.toLowerCase().contains('membership');
+        await showPaymentSuccessDialog(
+          context,
+          type: isMembership ? PaymentSuccessType.membership : PaymentSuccessType.coins,
+        );
+      }
       _finish(true);
     } else {
       _finish(false);
@@ -199,6 +224,14 @@ class _PaymentWebViewScreenState extends ConsumerState<PaymentWebViewScreen> {
       try {
         final st = await ref.read(walletApiProvider).orderStatus(paymentOrderId: orderId);
         if (st.status.trim().toLowerCase() == 'paid') {
+          if (mounted) {
+            final isMembership = widget.title.toLowerCase().contains('vip') ||
+                widget.title.toLowerCase().contains('membership');
+            await showPaymentSuccessDialog(
+              context,
+              type: isMembership ? PaymentSuccessType.membership : PaymentSuccessType.coins,
+            );
+          }
           _finish(true);
           return false;
         }
