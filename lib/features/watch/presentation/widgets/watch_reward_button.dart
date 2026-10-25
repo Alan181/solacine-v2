@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:dramereel_mobile/app/i18n.dart';
+import 'package:solacine_mobile/app/i18n.dart';
 
 class WatchRewardButton extends StatefulWidget {
   const WatchRewardButton({
