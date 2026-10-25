@@ -1140,7 +1140,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   }) async {
     final opId = ++_videoOpId;
     
-    // Tunggu sebentar atau pastikan data episode sudah termuat di map lokal
     int retry = 0;
     WatchEpisodeDto? ep;
     while (ep == null && retry < 5) {
@@ -1151,7 +1150,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       retry++;
     }
 
-    // Jika masih kosong, paksa tarik data spesifik episode langsung dari API
     if (ep == null && mounted) {
       try {
         final freshData = await ref.read(watchApiProvider).show(
@@ -1180,7 +1178,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
     setState(() {
       _videoReady = false;
-      _videoLoading = true; // Nyalakan indikator loading agar tidak diam
+      _videoLoading = true;
       _videoError = null;
       _activeVideoUrl = url;
     });
@@ -2136,12 +2134,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                         _video?.pause();
                       } catch (_) {}
                       final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&from=reels';
-                      context.go('/reels');
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (context.mounted) {
-                          context.push(target);
-                        }
-                      });
+                      if (context.mounted) {
+                        context.push(target);
+                      }
                     },
                     onTapReward: () => _pauseVideoAndPush('/rewards'),
                     onDismissReward: () {
