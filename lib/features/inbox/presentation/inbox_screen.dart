@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:dramereel_mobile/shared/widgets/app_cached_image.dart';
+import 'package:solacine_mobile/shared/widgets/app_cached_image.dart';
 import '../../../app/i18n.dart';
 import '../../auth/application/auth_controller.dart';
 import '../application/inbox_unread_count_provider.dart';
