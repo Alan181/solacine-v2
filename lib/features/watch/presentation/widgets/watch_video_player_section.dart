@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'package:dramereel_mobile/app/i18n.dart';
-import 'package:dramereel_mobile/shared/widgets/app_cached_image.dart';
+import 'package:solacine_mobile/app/i18n.dart';
+import 'package:solacine_mobile/shared/widgets/app_cached_image.dart';
 import 'watch_seek_bar.dart';
 
 class WatchVideoPlayerSection extends StatelessWidget {
