@@ -7,7 +7,7 @@ import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 import 'package:video_player/video_player.dart';
 import 'package:screen_security/screen_security.dart';
-import 'package:dramereel_mobile/shared/widgets/app_cached_image.dart';
+import 'package:solacine_mobile/shared/widgets/app_cached_image.dart';
 import '../../../app/i18n.dart';
 import '../../../shared/constants.dart';
 import '../../../shared/data/shared_prefs_provider.dart';
