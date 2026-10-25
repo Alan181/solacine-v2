@@ -2070,7 +2070,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                     likeBurstScale: _likeBurstScale,
                     likeBurstOpacity: _likeBurstOpacity,
                     rewardShakeAnimation: _rewardShake,
-                    rewardDismissed: _rewardDismissed || _exhaustedSeriesIds.contains(series.id), // Sembunyikan timer jika limit 1 jam sudah tercapai
+                    
+                    // Dijamin TIDAK MUNCUL di mode reelsPreview, jika di-dismiss user, atau jika limit 1 jam tercapai
+                    rewardDismissed: widget.reelsPreview || _rewardDismissed || _exhaustedSeriesIds.contains(series.id),
+                    
                     showSwipeGuide: _showSwipeGuide,
                     guideShakeAnimation: _guideShake,
                     isLiked: _isLiked,
@@ -2124,7 +2127,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                     ),
                     episodeNumber: epNum,
                     onTogglePlayback: _onCenterPlayPressed,
-                    // Memanggil API, mendeteksi limit_reached, dan menyembunyikan floating reward jika sudah habis 1 jam
                     onRewardEarned: () async {
                       try {
                         final bool isLimitReached = await ref.read(watchApiProvider).claimWatchReward(seriesId: series.id);
