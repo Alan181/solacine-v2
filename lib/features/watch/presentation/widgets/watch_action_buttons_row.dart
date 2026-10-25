@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dramereel_mobile/app/i18n.dart';
-import 'package:dramereel_mobile/features/my_list/application/favorites_controller.dart';
+import 'package:solacine_mobile/app/i18n.dart';
+import 'package:solacine_mobile/features/my_list/application/favorites_controller.dart';
 import 'watch_side_button.dart';
 
 class WatchActionButtonsRow extends ConsumerWidget {
