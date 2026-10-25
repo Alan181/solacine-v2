@@ -91,9 +91,11 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   
   // Menyimpan ID series yang jatah koin tonton 1 jamnya sudah habis hari ini
   final Set<int> _exhaustedSeriesIds = <int>{};
+  
+  // Menyimpan nomor episode yang reward-nya sudah di-dismiss oleh user
+  final Set<int> _dismissedRewardEpisodes = <int>{};
 
   late final AnimationController _rewardShake;
-  var _rewardDismissed = false;
   late final AnimationController _guideShake;
   var _showSwipeGuide = false;
   late final AnimationController _paywallAnim;
@@ -2101,8 +2103,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                     likeBurstOpacity: _likeBurstOpacity,
                     rewardShakeAnimation: _rewardShake,
                     
-                    // Dijamin TIDAK MUNCUL di mode reelsPreview, jika di-dismiss user, atau jika limit 1 jam tercapai
-                    rewardDismissed: widget.reelsPreview || _rewardDismissed || _exhaustedSeriesIds.contains(series.id),
+                    // Reward tidak muncul jika di reelsPreview, sudah di-dismiss di episode ini, atau limit harian series tercapai
+                    rewardDismissed: widget.reelsPreview || _dismissedRewardEpisodes.contains(epNum) || _exhaustedSeriesIds.contains(series.id),
                     
                     showSwipeGuide: _showSwipeGuide,
                     guideShakeAnimation: _guideShake,
@@ -2142,7 +2144,11 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                       });
                     },
                     onTapReward: () => _pauseVideoAndPush('/rewards'),
-                    onDismissReward: () => setState(() => _rewardDismissed = true),
+                    onDismissReward: () {
+                      setState(() {
+                        _dismissedRewardEpisodes.add(epNum); // Hanya dismiss untuk episode ini saja
+                      });
+                    },
                     onDismissSwipeGuide: _dismissSwipeGuide,
                     onRetryVideo: () => _startEpisodeNumber(epNum),
                     onOpenQualitySheet: (dynamic e) => _openQualitySheet(e as WatchEpisodeDto),
