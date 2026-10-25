@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dramereel_mobile/app/i18n.dart';
-import 'package:dramereel_mobile/shared/widgets/app_cached_image.dart';
+import 'package:solacine_mobile/app/i18n.dart';
+import 'package:solacine_mobile/shared/widgets/app_cached_image.dart';
 
 class WatchLoadingErrorBody extends StatelessWidget {
   const WatchLoadingErrorBody({
