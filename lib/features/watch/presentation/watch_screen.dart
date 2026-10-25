@@ -936,37 +936,36 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   }
 
   List<String> _candidateUrls(WatchEpisodeDto ep) {
-    final items = <({String url, int rank})>[];
-    for (final s in ep.sources) {
-      final type = (s['source_type'] as String?)?.trim().toLowerCase() ?? '';
-      final u = (s['source_url'] as String?)?.trim() ?? '';
-      final q = (s['quality'] as String?)?.trim() ?? '';
-      if (u.isEmpty) continue;
-      if (type == 'embed') continue;
-      items.add((url: u, rank: _qualityRank(q)));
-    }
-    items.sort((a, b) => b.rank.compareTo(a.rank));
     final out = <String>[];
-    for (final it in items) {
-      if (out.contains(it.url)) continue;
-      out.add(it.url);
+    
+    // 1. Prioritaskan videoUrl utama dari episode jika ada
+    final v = ep.videoUrl.trim();
+    if (v.isNotEmpty) {
+      out.add(v);
     }
+
+    // 2. Ambil dari sources (mendukung semua jenis link termasuk embed/direct)
+    for (final s in ep.sources) {
+      final u = (s['source_url'] as String?)?.trim() ?? '';
+      if (u.isNotEmpty && !out.contains(u)) {
+        out.add(u);
+      }
+    }
+
+    // Atur url pilihan jika ada
     final preferred = _preferredUrlByEpisode[ep.episodeNumber];
     if (preferred != null && preferred.trim().isNotEmpty && out.contains(preferred)) {
       out
         ..remove(preferred)
         ..insert(0, preferred);
     }
-    final v = ep.videoUrl.trim();
-    if (v.isNotEmpty && !out.contains(v)) out.add(v);
+
     return out;
   }
 
   List<Map<String, String>> _qualityOptions(WatchEpisodeDto ep) {
     final items = <({String quality, String url, int rank})>[];
     for (final s in ep.sources) {
-      final type = (s['source_type'] as String?)?.trim().toLowerCase() ?? '';
-      if (type == 'embed') continue;
       final u = (s['source_url'] as String?)?.trim() ?? '';
       if (u.isEmpty) continue;
       final q = (s['quality'] as String?)?.trim();
