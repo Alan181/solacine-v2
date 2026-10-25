@@ -94,14 +94,14 @@ class _WatchRewardButtonState extends State<WatchRewardButton> with SingleTicker
     final t = AppI18n.of(context);
     const double buttonSize = 46.0;
 
-    // Menggunakan Offstage agar ketika user klik X (rewardDismissed = true), 
-    // tombolnya tidak terlihat dan tidak bisa diklik, TAPI widget-nya TIDAK dihancurkan 
-    // sehingga timer dan proses klaim koin di background tetap berjalan normal!
-    return Offstage(
-      offstage: widget.rewardDismissed,
-      child: Positioned(
-        top: widget.topPad + 86,
-        left: 28,
+    // STRUKTUR YANG BENAR:
+    // 1. Positioned berada di luar (wajib di dalam Stack parent-nya agar tidak blank).
+    // 2. Offstage berada di dalam Positioned untuk menyembunyikan tampilannya saja saat diklik X.
+    return Positioned(
+      top: widget.topPad + 86,
+      left: 28,
+      child: Offstage(
+        offstage: widget.rewardDismissed,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
