@@ -1137,21 +1137,52 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     bool? resumePlaying,
   }) async {
     final opId = ++_videoOpId;
-    final data = _data;
-    if (data == null) return;
+    
+    // Tunggu sebentar atau pastikan data episode sudah termuat di map lokal
+    int retry = 0;
+    WatchEpisodeDto? ep;
+    while (ep == null && retry < 5) {
+      ep = _episodesByNumber[episodeNumber];
+      if (ep == null) {
+        await Future.delayed(const Duration(milliseconds: 150));
+      }
+      retry++;
+    }
 
-    final ep = _episodesByNumber[episodeNumber];
+    // Jika masih kosong, paksa tarik data spesifik episode langsung dari API
+    if (ep == null && mounted) {
+      try {
+        final freshData = await ref.read(watchApiProvider).show(
+              slug: widget.slug,
+              episodeNumber: episodeNumber,
+            );
+        for (final e in freshData.episodes) {
+          _episodesByNumber[e.episodeNumber] = e;
+        }
+        ep = _episodesByNumber[episodeNumber];
+      } catch (_) {}
+    }
+
     if (ep == null) {
+      if (mounted) {
+        setState(() {
+          _videoReady = false;
+          _videoLoading = false;
+          _videoError = 'Episode not found';
+        });
+      }
       return;
     }
+
     final url = ep.videoUrl.trim();
 
     setState(() {
       _videoReady = false;
-      _videoLoading = false;
+      _videoLoading = true; // Nyalakan indikator loading agar tidak diam
       _videoError = null;
       _activeVideoUrl = url;
     });
+
     final old = _video;
     _video = null;
     if (old != null) {
@@ -1174,7 +1205,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       return;
     }
 
-    setState(() => _videoLoading = true);
     Object? lastError;
     final shouldPlay = resumePlaying ?? true;
     for (final u in urls) {
@@ -1192,6 +1222,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       }
       c ??= VideoPlayerController.networkUrl(Uri.parse(u));
       _video = c;
+
       try {
         if (!c.value.isInitialized) {
           await c.initialize();
