@@ -88,6 +88,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   var _unlocking = false;
   var _autoUnlockEnabled = false;
   final Set<int> _autoUnlockTriedEpisodes = <int>{};
+  
+  // Menyimpan ID series yang jatah koin tonton 1 jamnya sudah habis hari ini
+  final Set<int> _exhaustedSeriesIds = <int>{};
+
   late final AnimationController _rewardShake;
   var _rewardDismissed = false;
   late final AnimationController _guideShake;
@@ -480,7 +484,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
       final targetPath = '/watch/$targetSlug?title=${Uri.encodeComponent(targetTitle)}&from=reels';
       
-      // Menggunakan push() agar riwayat stack tersimpan dan tombol kembali (back) aktif berfungsi normal
       context.push(targetPath);
     } catch (e) {
       _isNavigatingRandom = false;
@@ -2067,7 +2070,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                     likeBurstScale: _likeBurstScale,
                     likeBurstOpacity: _likeBurstOpacity,
                     rewardShakeAnimation: _rewardShake,
-                    rewardDismissed: _rewardDismissed,
+                    rewardDismissed: _rewardDismissed || _exhaustedSeriesIds.contains(series.id), // Sembunyikan timer jika limit 1 jam sudah tercapai
                     showSwipeGuide: _showSwipeGuide,
                     guideShakeAnimation: _guideShake,
                     isLiked: _isLiked,
@@ -2121,6 +2124,45 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                     ),
                     episodeNumber: epNum,
                     onTogglePlayback: _onCenterPlayPressed,
+                    // Memanggil API, mendeteksi limit_reached, dan menyembunyikan floating reward jika sudah habis 1 jam
+                    onRewardEarned: () async {
+                      try {
+                        final bool isLimitReached = await ref.read(watchApiProvider).claimWatchReward(seriesId: series.id);
+
+                        if (isLimitReached) {
+                          setState(() {
+                            _exhaustedSeriesIds.add(series.id);
+                          });
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Batas maksimal reward 1 jam untuk film ini telah tercapai.'),
+                                duration: Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                          return;
+                        }
+
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Selamat! Kamu mendapatkan +5 Koin dari menonton.'),
+                              duration: Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+
+                        try {
+                          final fresh = await ref.read(authApiProvider).me();
+                          await ref.read(authSessionProvider.notifier).setUser(fresh);
+                        } catch (_) {}
+                      } catch (e) {
+                        debugPrint('Gagal klaim koin tonton: $e');
+                      }
+                    },
                   );
                 },
                 itemCount: pageViewItemCount,
