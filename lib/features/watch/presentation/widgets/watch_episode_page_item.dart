@@ -165,8 +165,12 @@ class WatchEpisodePageItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Mengecek apakah video aktif dan sedang diputar (playing)
-    final bool isPlayingVideo = isActive && player != null && player!.value.isInitialized && player!.value.isPlaying;
+    // Memastikan timer reward hanya berjalan jika video aktif, ready, terinisialisasi, dan benar-benar sedang playing (tidak pause)
+    final bool isPlayingVideo = isActive && 
+        ready && 
+        player != null && 
+        player!.value.isInitialized && 
+        player!.value.isPlaying;
 
     return GestureDetector(
       onTap: onTap,
