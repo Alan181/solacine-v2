@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:dramereel_mobile/features/auth/presentation/widgets/google_auth_button.dart';
-import 'package:dramereel_mobile/shared/widgets/app_cached_image.dart';
+import 'package:solacine_mobile/features/auth/presentation/widgets/google_auth_button.dart';
+import 'package:solacine_mobile/shared/widgets/app_cached_image.dart';
 
 class ProfileUserHeaderCard extends StatelessWidget {
   const ProfileUserHeaderCard({
