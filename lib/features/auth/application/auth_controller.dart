@@ -7,12 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
-import 'package:dramereel_mobile/features/bootstrap/application/bootstrap_controller.dart';
-import 'package:dramereel_mobile/shared/data/auth_token_provider.dart';
-import 'package:dramereel_mobile/shared/data/secure_storage_provider.dart';
-import 'package:dramereel_mobile/shared/data/shared_prefs_provider.dart';
-import 'package:dramereel_mobile/features/auth/data/auth_api.dart';
-import 'package:dramereel_mobile/features/auth/domain/auth_storage_keys.dart';
+import 'package:solacine_mobile/features/bootstrap/application/bootstrap_controller.dart';
+import 'package:solacine_mobile/shared/data/auth_token_provider.dart';
+import 'package:solacine_mobile/shared/data/secure_storage_provider.dart';
+import 'package:solacine_mobile/shared/data/shared_prefs_provider.dart';
+import 'package:solacine_mobile/features/auth/data/auth_api.dart';
+import 'package:solacine_mobile/features/auth/domain/auth_storage_keys.dart';
 
 class AuthSession {
   const AuthSession({
