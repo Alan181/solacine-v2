@@ -86,6 +86,7 @@ class WatchEpisodePageItem extends StatelessWidget {
     required this.paywallAnimBuilder,
     required this.episodeNumber,
     this.onTogglePlayback,
+    required this.onRewardEarned,
   });
 
   final int epNum;
@@ -160,9 +161,13 @@ class WatchEpisodePageItem extends StatelessWidget {
   final Widget Function({required int episodeNumber, required Widget child}) paywallAnimBuilder;
   final int episodeNumber;
   final VoidCallback? onTogglePlayback;
+  final Future<void> Function() onRewardEarned;
 
   @override
   Widget build(BuildContext context) {
+    // Mengecek apakah video aktif dan sedang diputar (playing)
+    final bool isPlayingVideo = isActive && player != null && player!.value.isInitialized && player!.value.isPlaying;
+
     return GestureDetector(
       onTap: onTap,
       onDoubleTapDown: onDoubleTapDown,
@@ -220,6 +225,8 @@ class WatchEpisodePageItem extends StatelessWidget {
               rewardDismissed: rewardDismissed,
               onTapReward: onTapReward,
               onDismiss: onDismissReward,
+              isPlaying: isPlayingVideo,
+              onRewardEarned: onRewardEarned,
             ),
             WatchActionButtonsRow(
               bottomPad: bottomPad,
