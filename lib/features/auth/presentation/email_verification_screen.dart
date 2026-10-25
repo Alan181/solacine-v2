@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:dramereel_mobile/app/i18n.dart';
-import 'package:dramereel_mobile/features/bootstrap/application/bootstrap_controller.dart';
-import 'package:dramereel_mobile/features/auth/application/auth_controller.dart';
-import 'package:dramereel_mobile/features/auth/application/email_verification_skip_controller.dart';
-import 'package:dramereel_mobile/features/auth/data/auth_api.dart';
+import 'package:solacine_mobile/app/i18n.dart';
+import 'package:solacine_mobile/features/bootstrap/application/bootstrap_controller.dart';
+import 'package:solacine_mobile/features/auth/application/auth_controller.dart';
+import 'package:solacine_mobile/features/auth/application/email_verification_skip_controller.dart';
+import 'package:solacine_mobile/features/auth/data/auth_api.dart';
 import 'widgets/auth_shell.dart';
 import 'widgets/otp_code_field.dart';
 
