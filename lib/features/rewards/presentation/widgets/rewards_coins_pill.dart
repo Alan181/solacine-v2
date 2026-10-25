@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:dramereel_mobile/app/i18n.dart';
+import 'package:solacine_mobile/app/i18n.dart';
 
 class RewardsCoinsPill extends StatelessWidget {
   const RewardsCoinsPill({super.key, required this.coins});
