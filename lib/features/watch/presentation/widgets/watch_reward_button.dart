@@ -40,7 +40,8 @@ class _WatchRewardButtonState extends State<WatchRewardButton> with SingleTicker
       duration: const Duration(seconds: 60),
     );
 
-    if (widget.isPlaying && !widget.rewardDismissed) {
+    // Timer tetap berjalan di background meskipun tombol di-dismiss (di-klik X)
+    if (widget.isPlaying) {
       _progressController.repeat();
     }
 
@@ -55,8 +56,8 @@ class _WatchRewardButtonState extends State<WatchRewardButton> with SingleTicker
   void didUpdateWidget(covariant WatchRewardButton oldWidget) {
     super.didUpdateWidget(oldWidget);
     
-    // Otomatis pause/play animasi berdasarkan status video
-    if (widget.isPlaying && !widget.rewardDismissed) {
+    // Otomatis pause/play animasi berdasarkan status video (isPlaying)
+    if (widget.isPlaying) {
       if (!_progressController.isAnimating) {
         _progressController.forward();
       }
@@ -90,106 +91,110 @@ class _WatchRewardButtonState extends State<WatchRewardButton> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    if (widget.rewardDismissed) return const SizedBox.shrink();
     final t = AppI18n.of(context);
-
     const double buttonSize = 46.0;
 
-    return Positioned(
-      top: widget.topPad + 86,
-      left: 28,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              InkWell(
-                onTap: widget.onTapReward,
-                borderRadius: BorderRadius.circular(999),
-                child: AnimatedBuilder(
-                  animation: widget.rewardShakeAnimation,
-                  builder: (context, child) {
-                    final s = math.sin(widget.rewardShakeAnimation.value * math.pi * 2);
-                    return Transform.translate(
-                      offset: Offset(s * 2.0, 0),
-                      child: Transform.rotate(angle: s * 0.06, child: child),
-                    );
-                  },
-                  child: SizedBox(
-                    width: buttonSize + 6,
-                    height: buttonSize + 6,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // GARIS PROGRES MELINGKAR DI PINGGIRAN BULATAN
-                        SizedBox(
-                          width: buttonSize + 4,
-                          height: buttonSize + 4,
-                          child: AnimatedBuilder(
-                            animation: _progressController,
-                            builder: (context, child) {
-                              return CircularProgressIndicator(
-                                value: _progressController.value,
-                                backgroundColor: Colors.white.withValues(alpha: 0.15),
-                                color: Colors.amber, // Warna garis progres
-                                strokeWidth: 2.5,    // Ketebalan garis di pinggir
-                              );
-                            },
-                          ),
-                        ),
-                        // KONTEN UTAMA TOMBOL (BULATAN IKON)
-                        Container(
-                          width: buttonSize,
-                          height: buttonSize,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                          ),
-                          child: Center(
-                            child: Image.asset(
-                              'assets/images/app_gl_red_ic.png',
-                              width: 24,
-                              height: 24,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) => const SizedBox(width: 24, height: 24),
+    // Menggunakan Offstage agar ketika user klik X (rewardDismissed = true), 
+    // tombolnya tidak terlihat dan tidak bisa diklik, TAPI widget-nya TIDAK dihancurkan 
+    // sehingga timer dan proses klaim koin di background tetap berjalan normal!
+    return Offstage(
+      offstage: widget.rewardDismissed,
+      child: Positioned(
+        top: widget.topPad + 86,
+        left: 28,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                InkWell(
+                  onTap: widget.onTapReward,
+                  borderRadius: BorderRadius.circular(999),
+                  child: AnimatedBuilder(
+                    animation: widget.rewardShakeAnimation,
+                    builder: (context, child) {
+                      final s = math.sin(widget.rewardShakeAnimation.value * math.pi * 2);
+                      return Transform.translate(
+                        offset: Offset(s * 2.0, 0),
+                        child: Transform.rotate(angle: s * 0.06, child: child),
+                      );
+                    },
+                    child: SizedBox(
+                      width: buttonSize + 6,
+                      height: buttonSize + 6,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // GARIS PROGRES MELINGKAR DI PINGGIRAN BULATAN
+                          SizedBox(
+                            width: buttonSize + 4,
+                            height: buttonSize + 4,
+                            child: AnimatedBuilder(
+                              animation: _progressController,
+                              builder: (context, child) {
+                                return CircularProgressIndicator(
+                                  value: _progressController.value,
+                                  backgroundColor: Colors.white.withValues(alpha: 0.15),
+                                  color: Colors.amber, // Warna garis progres
+                                  strokeWidth: 2.5,    // Ketebalan garis di pinggir
+                                );
+                              },
                             ),
                           ),
-                        ),
-                      ],
+                          // KONTEN UTAMA TOMBOL (BULATAN IKON)
+                          Container(
+                            width: buttonSize,
+                            height: buttonSize,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                            ),
+                            child: Center(
+                              child: Image.asset(
+                                'assets/images/app_gl_red_ic.png',
+                                width: 24,
+                                height: 24,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) => const SizedBox(width: 24, height: 24),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              // TOMBOL CLOSE (X) DI POJOK KANAN ATAS
-              Positioned(
-                right: 0,
-                top: 0,
-                child: InkWell(
-                  onTap: widget.onDismiss,
-                  borderRadius: BorderRadius.circular(999),
-                  child: Container(
-                    width: 18,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.75),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                // TOMBOL CLOSE (X) DI POJOK KANAN ATAS
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: InkWell(
+                    onTap: widget.onDismiss,
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                      ),
+                      child: const Icon(Icons.close_rounded, size: 12, color: Colors.white),
                     ),
-                    child: const Icon(Icons.close_rounded, size: 12, color: Colors.white),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            t.t('reward'),
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.90), fontWeight: FontWeight.w500, fontSize: 11),
-          ),
-        ],
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              t.t('reward'),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.90), fontWeight: FontWeight.w500, fontSize: 11),
+            ),
+          ],
+        ),
       ),
     );
   }
