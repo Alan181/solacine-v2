@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:better_player/better_player.dart';
+import 'package:media_kit_video/media_kit_video.dart' as media_kit_video;
 import 'package:solacine_mobile/app/i18n.dart';
 import 'package:solacine_mobile/shared/widgets/app_cached_image.dart';
 
@@ -11,7 +11,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
     required this.hasVideo,
     required this.videoLoading,
     required this.videoError,
-    required this.betterPlayerController,
+    required this.mediaKitVideoController, // Diubah ke media_kit VideoController
     required this.bg,
     required this.ep,
     required this.series,
@@ -34,7 +34,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
   final bool hasVideo;
   final bool videoLoading;
   final String? videoError;
-  final BetterPlayerController? betterPlayerController;
+  final media_kit_video.VideoController? mediaKitVideoController; // Tipe data media_kit
   final String bg;
   final dynamic ep;
   final dynamic series;
@@ -54,21 +54,23 @@ class WatchVideoPlayerSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppI18n.of(context);
-    final controller = betterPlayerController;
+    final controller = mediaKitVideoController;
 
     return Stack(
       fit: StackFit.expand,
       children: [
         const ColoredBox(color: Colors.black),
         
-        // 1. Background poster agar tidak ada flash hitam kosong
+        // 1. Background poster agar tidak ada flash hitam kosong saat buffering
         _buildBackground(bg),
 
-        // 2. Better Player Widget
-        if (controller != null && isUnlocked && hasVideo)
+        // 2. MediaKit Video Widget (Anti layar hitam & mulus ala TikTok)
+        if (ready && isUnlocked && hasVideo && controller != null)
           Positioned.fill(
-            child: BetterPlayer(
+            child: media_kit_video.Video(
               controller: controller,
+              fit: BoxFit.cover,
+              controls: media_kit_video.NoVideoControls, // Kontrol kustom ditangani oleh UI Solacine
             ),
           ),
 
