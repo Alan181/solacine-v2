@@ -1065,7 +1065,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                             WidgetsBinding.instance.addPostFrameCallback((_) async {
                               if (!mounted) return;
                               final controller = _videoController;
-                              final pos = controller != null ? (controller.videoPlayer?.value.position ?? Duration.zero) : Duration.zero;
+                              final pos = controller != null ? (controller.videoPlayerController?.value.position ?? Duration.zero) : Duration.zero;
                               final wasPlaying = controller != null ? (controller.isPlaying() ?? true) : true;
                               setState(() {
                                 _preferredQualityByEpisode[ep.episodeNumber] = q;
