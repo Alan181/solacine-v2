@@ -37,7 +37,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
   final bool hasVideo;
   final bool videoLoading;
   final String? videoError;
-  final Player? player; // Diubah dari VideoPlayerController ke Player media_kit
+  final Player? player;
   final String bg;
   final dynamic ep;
   final dynamic series;
@@ -63,21 +63,30 @@ class WatchVideoPlayerSection extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         const ColoredBox(color: Colors.black),
-        if (!ready || p == null) _buildBackground(bg),
-        if (ready && p != null)
-          RepaintBoundary(
-            child: FittedBox(
-              fit: BoxFit.cover,
-              child: SizedBox(
-                width: (p.state.width ?? 0) > 0 ? (p.state.width!).toDouble() : 9.0,
-                height: (p.state.height ?? 0) > 0 ? (p.state.height!).toDouble() : 16.0,
-                child: Video(
-                  controller: VideoController(p),
-                  controls: NoVideoControls,
+        
+        // 1. Selalu render background poster di bawah agar tidak ada flash hitam kosong
+        _buildBackground(bg),
+
+        // 2. Video player ditumpuk di atas background dengan AnimatedOpacity untuk transisi halus
+        if (p != null)
+          AnimatedOpacity(
+            opacity: ready ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 250),
+            child: RepaintBoundary(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: (p.state.width ?? 0) > 0 ? (p.state.width!).toDouble() : 9.0,
+                  height: (p.state.height ?? 0) > 0 ? (p.state.height!).toDouble() : 16.0,
+                  child: Video(
+                    controller: VideoController(p),
+                    controls: NoVideoControls,
+                  ),
                 ),
               ),
             ),
           ),
+
         // Cinema bottom gradient shadow to guarantee controls, title and buttons readability
         Positioned(
           left: 0,
@@ -130,7 +139,6 @@ class WatchVideoPlayerSection extends StatelessWidget {
         if (ready && isUnlocked && hasVideo && videoError == null && p != null)
           StreamBuilder(
             stream: p.stream.buffering,
- // Menggunakan stream media_kit untuk status buffer/loading
             builder: (context, _) {
               return StreamBuilder<bool>(
                 stream: p.stream.buffering,
@@ -233,7 +241,6 @@ class WatchVideoPlayerSection extends StatelessWidget {
 
   List<Widget> _buildBottomControls(BuildContext context, AppI18n t, Player p) {
     if (reelsPreview) {
-      // In Reels: Clean, minimal bottom scrub bar in pure GREY tones! Always visible!
       return [
         PositionedDirectional(
           start: 0,
@@ -248,9 +255,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
       ];
     }
 
-    // Main Series Watch Mode
     return [
-      // Video Time (text only, small font) directly above Seek Bar
       PositionedDirectional(
         start: 14,
         end: 14,
@@ -299,7 +304,6 @@ class WatchVideoPlayerSection extends StatelessWidget {
           ),
         ),
       ),
-      // Bottom Status & Action Bar
       PositionedDirectional(
         start: 14,
         end: 14,
