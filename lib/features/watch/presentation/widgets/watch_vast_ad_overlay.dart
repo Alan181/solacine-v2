@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
+import 'package:better_player/better_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../ads/application/vast_ad_service.dart';
@@ -23,8 +22,7 @@ class WatchVastAdOverlay extends StatefulWidget {
 }
 
 class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
-  Player? _player;
-  VideoController? _videoController;
+  BetterPlayerController? _betterPlayerController;
   Timer? _ticker;
   Timer? _safetyTimeout;
   late int _remainingSkipSeconds;
@@ -32,6 +30,7 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
   bool _muted = false;
   bool _finished = false;
   bool _loadFailed = false;
+  bool _isInitialized = false;
   final Set<String> _firedPings = <String>{};
 
   @override
@@ -40,21 +39,20 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
     _remainingSkipSeconds = widget.adData.skipSeconds;
     _canSkip = _remainingSkipSeconds <= 0;
 
-    // 1. Start skip timer immediately so the countdown ticks even while buffering
+    // 1. Start skip timer immediately
     _startSkipTimer();
 
-    // 2. Safety timeout: if ad video fails to play within 7 seconds, dismiss so user is never stuck
-    _safetyTimeout = Timer(const Duration(seconds: 7), () {
+    // 2. Safety timeout: if ad video fails to load within 8 seconds, dismiss safely
+    _safetyTimeout = Timer(const Duration(seconds: 8), () {
       if (!mounted || _finished) return;
-      final p = _player;
-      if (p == null || p.state.duration == Duration.zero) {
+      if (!_isInitialized) {
         debugPrint('[WatchVastAdOverlay] Safety timeout triggered: ad video took too long to load');
         setState(() => _loadFailed = true);
         _finishAd(completed: false);
       }
     });
 
-    // 3. Initialize media_kit player
+    // 3. Initialize BetterPlayer for VAST ad
     _initVideo();
   }
 
@@ -66,38 +64,60 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
         return;
       }
 
-      final player = Player();
-      _player = player;
-      _videoController = VideoController(player);
-
-      // Setup listeners & volume
-      player.stream.completed.listen((completed) {
-        if (completed && !_finished) {
-          if (!_firedPings.contains('complete')) {
-            _firedPings.add('complete');
-            final completeUrls = widget.adData.trackingEvents['complete'];
-            if (completeUrls != null) VastAdService.sendPings(completeUrls);
+      BetterPlayerConfiguration betterPlayerConfiguration = BetterPlayerConfiguration(
+        aspectRatio: 9 / 16,
+        fit: BoxFit.cover,
+        autoPlay: true,
+        looping: false,
+        muted: _muted,
+        controlsConfiguration: const BetterPlayerControlsConfiguration(
+          showControls: false, // Custom controls handled by overlay
+        ),
+        eventsListener: (event) {
+          if (!mounted) return;
+          
+          if (event.betterPlayerEventType == BetterPlayerEventType.initialized) {
+            setState(() {
+              _isInitialized = true;
+            });
+            // Fire impression & start tracking
+            if (!_firedPings.contains('start')) {
+              _firedPings.add('start');
+              VastAdService.sendPings(widget.adData.impressions);
+              final startUrls = widget.adData.trackingEvents['start'];
+              if (startUrls != null) VastAdService.sendPings(startUrls);
+            }
           }
-          _finishAd(completed: true);
-        }
-      });
 
-      player.stream.playing.listen((playing) {
-        if (playing && !_firedPings.contains('start')) {
-          _firedPings.add('start');
-          VastAdService.sendPings(widget.adData.impressions);
-          final startUrls = widget.adData.trackingEvents['start'];
-          if (startUrls != null) VastAdService.sendPings(startUrls);
-        }
-        if (mounted) setState(() {});
-      });
+          if (event.betterPlayerEventType == BetterPlayerEventType.finished) {
+            if (!_finished) {
+              if (!_firedPings.contains('complete')) {
+                _firedPings.add('complete');
+                final completeUrls = widget.adData.trackingEvents['complete'];
+                if (completeUrls != null) VastAdService.sendPings(completeUrls);
+              }
+              _finishAd(completed: true);
+            }
+          }
 
-      player.stream.position.listen((pos) {
-        _handleTrackingProgress(pos);
-      });
+          if (event.betterPlayerEventType == BetterPlayerEventType.progress) {
+            final position = _betterPlayerController?.videoPlayerController?.value.position;
+            final duration = _betterPlayerController?.videoPlayerController?.value.duration;
+            if (position != null && duration != null && duration > Duration.zero) {
+              _handleTrackingProgress(position, duration);
+            }
+          }
+        },
+      );
 
-      await player.setVolume(_muted ? 0.0 : 100.0);
-      await player.open(Media(cleanUrl), play: true);
+      BetterPlayerDataSource dataSource = BetterPlayerDataSource(
+        BetterPlayerDataSourceType.network,
+        cleanUrl,
+        videoFormat: BetterPlayerVideoFormat.hls,
+      );
+
+      _betterPlayerController = BetterPlayerController(betterPlayerConfiguration);
+      await _betterPlayerController?.setupDataSource(dataSource);
 
       if (mounted) setState(() {});
     } catch (e) {
@@ -109,27 +129,22 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
     }
   }
 
-  void _handleTrackingProgress(Duration pos) {
-    final p = _player;
-    if (p == null) return;
-    final dur = p.state.duration;
-    if (dur > Duration.zero) {
-      final progress = pos.inMilliseconds / dur.inMilliseconds;
-      if (progress >= 0.25 && !_firedPings.contains('firstQuartile')) {
-        _firedPings.add('firstQuartile');
-        final urls = widget.adData.trackingEvents['firstquartile'];
-        if (urls != null) VastAdService.sendPings(urls);
-      }
-      if (progress >= 0.50 && !_firedPings.contains('midpoint')) {
-        _firedPings.add('midpoint');
-        final urls = widget.adData.trackingEvents['midpoint'];
-        if (urls != null) VastAdService.sendPings(urls);
-      }
-      if (progress >= 0.75 && !_firedPings.contains('thirdQuartile')) {
-        _firedPings.add('thirdQuartile');
-        final urls = widget.adData.trackingEvents['thirdquartile'];
-        if (urls != null) VastAdService.sendPings(urls);
-      }
+  void _handleTrackingProgress(Duration pos, Duration dur) {
+    final progress = pos.inMilliseconds / dur.inMilliseconds;
+    if (progress >= 0.25 && !_firedPings.contains('firstQuartile')) {
+      _firedPings.add('firstQuartile');
+      final urls = widget.adData.trackingEvents['firstquartile'];
+      if (urls != null) VastAdService.sendPings(urls);
+    }
+    if (progress >= 0.50 && !_firedPings.contains('midpoint')) {
+      _firedPings.add('midpoint');
+      final urls = widget.adData.trackingEvents['midpoint'];
+      if (urls != null) VastAdService.sendPings(urls);
+    }
+    if (progress >= 0.75 && !_firedPings.contains('thirdQuartile')) {
+      _firedPings.add('thirdQuartile');
+      final urls = widget.adData.trackingEvents['thirdquartile'];
+      if (urls != null) VastAdService.sendPings(urls);
     }
   }
 
@@ -160,11 +175,10 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
     _ticker?.cancel();
     _safetyTimeout?.cancel();
     try {
-      _player?.pause();
-      _player?.dispose();
+      _betterPlayerController?.pause();
+      _betterPlayerController?.dispose();
     } catch (_) {}
-    _player = null;
-    _videoController = null;
+    _betterPlayerController = null;
     widget.onFinished?.call();
     widget.onAdClosed?.call(completed);
   }
@@ -194,11 +208,11 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
   }
 
   void _toggleMute() {
-    final p = _player;
-    if (p == null) return;
+    final controller = _betterPlayerController;
+    if (controller == null) return;
     setState(() {
       _muted = !_muted;
-      p.setVolume(_muted ? 0.0 : 100.0);
+      controller.setVolume(_muted ? 0.0 : 1.0);
     });
   }
 
@@ -214,34 +228,24 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
     _ticker?.cancel();
     _safetyTimeout?.cancel();
     try {
-      _player?.dispose();
+      _betterPlayerController?.dispose();
     } catch (_) {}
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final p = _player;
-    final vc = _videoController;
-    final isInitialized = p != null && p.state.duration > Duration.zero;
+    final controller = _betterPlayerController;
 
     return Container(
       color: Colors.black,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Ad Video Player using media_kit
-          if (isInitialized && vc != null)
-            Center(
-              child: AspectRatio(
-                aspectRatio: (p.state.width ?? 0) > 0 && (p.state.height ?? 0) > 0
-                    ? (p.state.width ?? 9).toDouble() / (p.state.height ?? 16).toDouble()
-                    : 9.0 / 16.0,
-                child: Video(
-                  controller: vc,
-                  controls: NoVideoControls,
-                ),
-              ),
+          // Ad Video Player using BetterPlayer
+          if (_isInitialized && controller != null)
+            Positioned.fill(
+              child: BetterPlayer(controller: controller),
             )
           else
             const Center(
@@ -281,12 +285,11 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                if (isInitialized)
-                  StreamBuilder<Duration>(
-                    stream: p.stream.position,
-                    builder: (context, snapshot) {
-                      final pos = snapshot.data ?? p.state.position;
-                      final total = p.state.duration;
+                if (_isInitialized && controller != null)
+                  Builder(
+                    builder: (context) {
+                      final pos = controller.videoPlayerController?.value.position ?? Duration.zero;
+                      final total = controller.videoPlayerController?.value.duration ?? Duration.zero;
                       final remaining = total > pos ? total - pos : Duration.zero;
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
