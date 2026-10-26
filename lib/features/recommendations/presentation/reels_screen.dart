@@ -121,12 +121,12 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> with WidgetsBindingOb
           );
         }
 
-        if (_index >= items.length) {
+        if (_index >= items.length * 10) {
           _index = 0;
         }
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _prefetchAround(items, _index);
+          _prefetchAround(items, _index % items.length);
         });
 
         final activeBranch = ActiveShellBranchScope.maybeOf(context);
