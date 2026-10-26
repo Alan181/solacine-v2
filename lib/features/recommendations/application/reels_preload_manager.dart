@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 import '../../watch/data/watch_api.dart';
@@ -49,7 +50,7 @@ class ReelsPreloadManager {
               episodeNumber: episode,
               episodesPerPage: 1,
               options: Options(
-                extra: {'reels_preview': true}, // <--- Pengaman agar prefetch tidak masuk history database
+                extra: {'reels_preview': true}, // Pengaman agar prefetch tidak masuk history database
               ),
             );
         _dataCache[cleanSlug] = data;
@@ -58,9 +59,23 @@ class ReelsPreloadManager {
       final ep = data.episodes.isNotEmpty ? data.episodes.first : null;
       final videoUrl = ep?.videoUrl.trim() ?? '';
       if (videoUrl.isNotEmpty && !_playerCache.containsKey(videoUrl)) {
-        final player = Player();
-        // Buka media di background tanpa langsung memutar suaranya
-        await player.open(Media(videoUrl), play: false);
+        // Optimasi: Menambahkan PlayerConfiguration untuk cache HLS & Buffer (32MB)
+        final player = Player(
+          configuration: const PlayerConfiguration(
+            bufferSize: 32 * 1024 * 1024, // 32 MB demuxer cache size untuk kestabilan HLS stream
+          ),
+        );
+
+        // Buka media di background dengan header opsional
+        await player.open(
+          Media(
+            videoUrl,
+            httpHeaders: const {
+              'User-Agent': 'SolacineMobile/1.0',
+            },
+          ),
+          play: false,
+        );
         await player.setPlaylistMode(PlaylistMode.single);
 
         // Keep maximum 2 pre-warmed players to prevent RAM bloat
@@ -73,8 +88,8 @@ class ReelsPreloadManager {
         }
         _playerCache[videoUrl] = player;
       }
-    } catch (_) {
-      // Ignore background prefetch network errors
+    } catch (e) {
+      debugPrint('[ReelsPreloadManager] Prefetch error for $cleanSlug: $e');
     } finally {
       _inFlightSlugs.remove(cleanSlug);
     }
