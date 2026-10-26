@@ -1,10 +1,7 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
+import 'package:better_player/better_player.dart';
 import 'package:solacine_mobile/app/i18n.dart';
 import 'package:solacine_mobile/shared/widgets/app_cached_image.dart';
-import 'watch_seek_bar.dart';
 
 class WatchVideoPlayerSection extends StatelessWidget {
   const WatchVideoPlayerSection({
@@ -14,7 +11,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
     required this.hasVideo,
     required this.videoLoading,
     required this.videoError,
-    required this.player,
+    required this.betterPlayerController,
     required this.bg,
     required this.ep,
     required this.series,
@@ -37,7 +34,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
   final bool hasVideo;
   final bool videoLoading;
   final String? videoError;
-  final Player? player;
+  final BetterPlayerController? betterPlayerController;
   final String bg;
   final dynamic ep;
   final dynamic series;
@@ -57,33 +54,21 @@ class WatchVideoPlayerSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppI18n.of(context);
-    final p = player;
+    final controller = betterPlayerController;
 
     return Stack(
       fit: StackFit.expand,
       children: [
         const ColoredBox(color: Colors.black),
         
-        // 1. Selalu render background poster di bawah agar tidak ada flash hitam kosong
+        // 1. Background poster agar tidak ada flash hitam kosong
         _buildBackground(bg),
 
-        // 2. Video player ditumpuk di atas background dengan AnimatedOpacity untuk transisi halus
-        if (p != null)
-          AnimatedOpacity(
-            opacity: ready ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 250),
-            child: RepaintBoundary(
-              child: FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: (p.state.width ?? 0) > 0 ? (p.state.width!).toDouble() : 9.0,
-                  height: (p.state.height ?? 0) > 0 ? (p.state.height!).toDouble() : 16.0,
-                  child: Video(
-                    controller: VideoController(p),
-                    controls: NoVideoControls,
-                  ),
-                ),
-              ),
+        // 2. Better Player Widget
+        if (controller != null && isUnlocked && hasVideo)
+          Positioned.fill(
+            child: BetterPlayer(
+              controller: controller,
             ),
           ),
 
@@ -135,79 +120,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
             ),
           ),
         ),
-        // Center overlay: iOS loading spinner when buffering/loading, OR play button when paused
-        if (ready && isUnlocked && hasVideo && videoError == null && p != null)
-          StreamBuilder<bool>(
-            stream: p.stream.buffering,
-            builder: (context, bufferingSnapshot) {
-              return StreamBuilder<bool>(
-                stream: p.stream.playing,
-                builder: (context, playingSnapshot) {
-                  final isBuffering = (bufferingSnapshot.data ?? false) || videoLoading;
-                  
-                  if (isBuffering) {
-                    return Center(
-                      child: Container(
-                        width: 68,
-                        height: 68,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.50),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.20),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: const Center(
-                          child: CupertinoActivityIndicator(
-                            radius: 16,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-
-                  final isPlaying = playingSnapshot.data ?? true;
-                  final isPaused = !isPlaying;
-                  if (!isPaused) return const SizedBox.shrink();
-
-                  return Center(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        if (onTogglePlayback != null) {
-                          onTogglePlayback!();
-                        } else {
-                          p.play();
-                        }
-                      },
-                      child: Container(
-                        width: 74,
-                        height: 74,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.55),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.8),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withValues(alpha: 0.50), blurRadius: 24, spreadRadius: 2),
-                          ],
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 48,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        if (ready && isUnlocked && p != null) ..._buildBottomControls(context, t, p),
+        if (ready && isUnlocked && controller != null) ..._buildBottomControls(context, t),
       ],
     );
   }
@@ -234,71 +147,12 @@ class WatchVideoPlayerSection extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildBottomControls(BuildContext context, AppI18n t, Player p) {
+  List<Widget> _buildBottomControls(BuildContext context, AppI18n t) {
     if (reelsPreview) {
-      return [
-        PositionedDirectional(
-          start: 0,
-          end: 0,
-          bottom: bottomPad,
-          child: WatchSeekBar(
-            controller: p,
-            activeColor: const Color(0xFFB0B0B0),
-            inactiveColor: const Color(0xFF333333).withValues(alpha: 0.60),
-          ),
-        ),
-      ];
+      return [];
     }
 
     return [
-      PositionedDirectional(
-        start: 14,
-        end: 14,
-        bottom: bottomPad + 38,
-        child: IgnorePointer(
-          ignoring: !controlsVisible,
-          child: AnimatedOpacity(
-            opacity: controlsVisible ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 180),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (ready && isUnlocked)
-                  StreamBuilder<Duration>(
-                    stream: p.stream.position,
-                    builder: (context, snapshot) {
-                      final position = snapshot.data ?? p.state.position;
-                      final duration = p.state.duration;
-                      return Text(
-                        '${fmtDuration(position)} / ${fmtDuration(duration)}',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.88),
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w600,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                          shadows: [
-                            Shadow(
-                              color: Colors.black.withValues(alpha: 0.85),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                const SizedBox(height: 3),
-                WatchSeekBar(
-                  controller: p,
-                  activeColor: const Color(0xFFE50914),
-                  inactiveColor: Colors.white.withValues(alpha: 0.22),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
       PositionedDirectional(
         start: 14,
         end: 14,
