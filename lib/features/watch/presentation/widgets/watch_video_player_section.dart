@@ -462,7 +462,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    ];
+      ],
+    );
   }
 }
