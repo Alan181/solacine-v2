@@ -1065,7 +1065,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                             WidgetsBinding.instance.addPostFrameCallback((_) async {
                               if (!mounted) return;
                               final controller = _videoController;
-                              final pos = controller != null ? (controller.videoPlayerController?.value.position ?? Duration.zero) : Duration.zero;
+                              final pos = controller != null ? (controller.value?.position ?? Duration.zero) : Duration.zero;
                               final wasPlaying = controller != null ? (controller.isPlaying() ?? true) : true;
                               setState(() {
                                 _preferredQualityByEpisode[ep.episodeNumber] = q;
@@ -1183,7 +1183,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       });
 
       try {
-        BetterPlayerConfiguration betterPlayerConfiguration = BetterPlayerConfiguration(
+        final betterPlayerConfiguration = BetterPlayerConfiguration(
           aspectRatio: 9 / 16,
           fit: BoxFit.cover,
           autoPlay: shouldPlay && widget.isActive,
@@ -1193,7 +1193,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           ),
         );
 
-        BetterPlayerDataSource dataSource = BetterPlayerDataSource(
+        final dataSource = BetterPlayerDataSource(
           BetterPlayerDataSourceType.network,
           u,
           videoFormat: BetterPlayerVideoFormat.hls,
