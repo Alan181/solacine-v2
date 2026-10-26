@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
-import 'package:better_player/better_player.dart';
+import 'package:better_player/better_player.dart' as better_player;
 import 'package:screen_security/screen_security.dart';
 import 'package:solacine_mobile/shared/widgets/app_cached_image.dart';
 import '../../../app/i18n.dart';
@@ -66,7 +66,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   int _episodesSinceLastAd = 0;
   final int _adFrequencyInterval = 5;
 
-  BetterPlayerController? _videoController;
+  better_player.BetterPlayerController? _videoController;
   var _videoReady = false;
   var _videoOpId = 0;
   var _disposed = false;
@@ -1065,7 +1065,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                             WidgetsBinding.instance.addPostFrameCallback((_) async {
                               if (!mounted) return;
                               final controller = _videoController;
-                              final pos = controller != null ? (controller.videoPlayerController?.value.position ?? Duration.zero) : Duration.zero;
+                              final pos = controller != null ? (controller.videoPlayer?.value.position ?? Duration.zero) : Duration.zero;
                               final wasPlaying = controller != null ? (controller.isPlaying() ?? true) : true;
                               setState(() {
                                 _preferredQualityByEpisode[ep.episodeNumber] = q;
@@ -1183,23 +1183,23 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       });
 
       try {
-        final betterPlayerConfiguration = BetterPlayerConfiguration(
+        final betterPlayerConfiguration = better_player.BetterPlayerConfiguration(
           aspectRatio: 9 / 16,
           fit: BoxFit.cover,
           autoPlay: shouldPlay && widget.isActive,
           looping: false,
-          controlsConfiguration: const BetterPlayerControlsConfiguration(
+          controlsConfiguration: const better_player.BetterPlayerControlsConfiguration(
             showControls: false,
           ),
         );
 
-        final dataSource = BetterPlayerDataSource(
-          BetterPlayerDataSourceType.network,
+        final dataSource = better_player.BetterPlayerDataSource(
+          better_player.BetterPlayerDataSourceType.network,
           u,
-          videoFormat: BetterPlayerVideoFormat.hls,
+          videoFormat: better_player.BetterPlayerVideoFormat.hls,
         );
 
-        final controller = BetterPlayerController(betterPlayerConfiguration);
+        final controller = better_player.BetterPlayerController(betterPlayerConfiguration);
         await controller.setupDataSource(dataSource);
         await controller.setSpeed(_playbackSpeed);
 
