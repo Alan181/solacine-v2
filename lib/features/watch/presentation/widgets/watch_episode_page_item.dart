@@ -17,7 +17,7 @@ class WatchEpisodePageItem extends StatelessWidget {
     required this.epNum,
     required this.ep,
     required this.isActive,
-    required this.betterPlayerController, // Diubah dari player ke betterPlayerController
+    required this.betterPlayerController,
     required this.ready,
     required this.isUnlocked,
     required this.hasVideo,
@@ -91,7 +91,7 @@ class WatchEpisodePageItem extends StatelessWidget {
   final int epNum;
   final dynamic ep;
   final bool isActive;
-  final BetterPlayerController? betterPlayerController; // Menggunakan BetterPlayerController
+  final BetterPlayerController? betterPlayerController;
   final bool ready;
   final bool isUnlocked;
   final bool hasVideo;
@@ -178,7 +178,7 @@ class WatchEpisodePageItem extends StatelessWidget {
             hasVideo: hasVideo,
             videoLoading: videoLoading,
             videoError: videoError,
-            betterPlayerController: betterPlayerController, // Dioper ke WatchVideoPlayerSection
+            betterPlayerController: betterPlayerController,
             bg: bg,
             ep: ep,
             series: series,
@@ -285,7 +285,7 @@ class WatchEpisodePageItem extends StatelessWidget {
               epNum: epNum,
               totalEpisodes: totalEpisodes,
               onToggleControls: onToggleControls,
-              onSafePopOrHome: _safePopOrHome, // Pastikan terpanggil dengan benar sesuai fungsi
+              onSafePopOrHome: onSafePopOrHome, // Menggunakan parameter onSafePopOrHome dari constructor
               isUnlocked: isUnlocked,
             ),
         ],
