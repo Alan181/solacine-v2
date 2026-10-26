@@ -1,4 +1,4 @@
-Name: Build Release Apk
+name: Build Flutter Release
 
 on:
   push:
