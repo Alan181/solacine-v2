@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:better_player/better_player.dart' as better_player;
+import 'package:media_kit/media_kit.dart' as media_kit_pkg;
+import 'package:media_kit_video/media_kit_video.dart' as media_kit_video_pkg;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../ads/application/vast_ad_service.dart';
@@ -22,7 +23,12 @@ class WatchVastAdOverlay extends StatefulWidget {
 }
 
 class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
-  better_player.BetterPlayerController? _betterPlayerController;
+  late final media_kit_pkg.Player _player;
+  late final media_kit_video_pkg.VideoController _videoController;
+  
+  StreamSubscription<media_kit_pkg.PlayerState>? _playerStateSub;
+  StreamSubscription<Duration>? _positionSub;
+
   Timer? _ticker;
   Timer? _safetyTimeout;
   late int _remainingSkipSeconds;
@@ -39,8 +45,14 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
     _remainingSkipSeconds = widget.adData.skipSeconds;
     _canSkip = _remainingSkipSeconds <= 0;
 
+    // 1. Inisialisasi media_kit Player & VideoController
+    _player = media_kit_pkg.Player();
+    _videoController = media_kit_video_pkg.VideoController(_player);
+
+    // 2. Start skip timer immediately
     _startSkipTimer();
 
+    // 3. Safety timeout: if ad video fails to load within 8 seconds, dismiss safely
     _safetyTimeout = Timer(const Duration(seconds: 8), () {
       if (!mounted || _finished) return;
       if (!_isInitialized) {
@@ -50,7 +62,46 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
       }
     });
 
+    // 4. Listen ke pemutaran & progress menggunakan Stream media_kit
+    _setupPlayerListeners();
+
+    // 5. Initialize & Open Media URL
     _initVideo();
+  }
+
+  void _setupPlayerListeners() {
+    _playerStateSub = _player.stream.completed.listen((completed) {
+      if (completed && !_finished) {
+        if (!_firedPings.contains('complete')) {
+          _firedPings.add('complete');
+          final completeUrls = widget.adData.trackingEvents['complete'];
+          if (completeUrls != null) VastAdService.sendPings(completeUrls);
+        }
+        _finishAd(completed: true);
+      }
+    });
+
+    _positionSub = _player.stream.position.listen((position) {
+      if (!mounted) return;
+      final duration = _player.state.duration;
+
+      // Tandai initialized saat posisi atau durasi mulai terbaca
+      if (!_isInitialized && (position > Duration.zero || duration > Duration.zero)) {
+        setState(() {
+          _isInitialized = true;
+        });
+        if (!_firedPings.contains('start')) {
+          _firedPings.add('start');
+          VastAdService.sendPings(widget.adData.impressions);
+          final startUrls = widget.adData.trackingEvents['start'];
+          if (startUrls != null) VastAdService.sendPings(startUrls);
+        }
+      }
+
+      if (duration > Duration.zero) {
+        _handleTrackingProgress(position, duration);
+      }
+    });
   }
 
   Future<void> _initVideo() async {
@@ -61,61 +112,8 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
         return;
       }
 
-      final betterPlayerConfiguration = better_player.BetterPlayerConfiguration(
-        aspectRatio: 9 / 16,
-        fit: BoxFit.cover,
-        autoPlay: true,
-        looping: false,
-        muted: _muted,
-        controlsConfiguration: const better_player.BetterPlayerControlsConfiguration(
-          showControls: false,
-        ),
-        eventsListener: (event) {
-          if (!mounted) return;
-          
-          if (event.betterPlayerEventType == better_player.BetterPlayerEventType.initialized) {
-            setState(() {
-              _isInitialized = true;
-            });
-            if (!_firedPings.contains('start')) {
-              _firedPings.add('start');
-              VastAdService.sendPings(widget.adData.impressions);
-              final startUrls = widget.adData.trackingEvents['start'];
-              if (startUrls != null) VastAdService.sendPings(startUrls);
-            }
-          }
-
-          if (event.betterPlayerEventType == better_player.BetterPlayerEventType.finished) {
-            if (!_finished) {
-              if (!_firedPings.contains('complete')) {
-                _firedPings.add('complete');
-                final completeUrls = widget.adData.trackingEvents['complete'];
-                if (completeUrls != null) VastAdService.sendPings(completeUrls);
-              }
-              _finishAd(completed: true);
-            }
-          }
-
-          if (event.betterPlayerEventType == better_player.BetterPlayerEventType.progress) {
-            final position = _betterPlayerController?.videoPlayerController?.value.position;
-            final duration = _betterPlayerController?.videoPlayerController?.value.duration;
-            if (position != null && duration != null && duration > Duration.zero) {
-              _handleTrackingProgress(position, duration);
-            }
-          }
-        },
-      );
-
-      final dataSource = better_player.BetterPlayerDataSource(
-        better_player.BetterPlayerDataSourceType.network,
-        cleanUrl,
-        videoFormat: better_player.BetterPlayerVideoFormat.hls,
-      );
-
-      _betterPlayerController = better_player.BetterPlayerController(betterPlayerConfiguration);
-      await _betterPlayerController?.setupDataSource(dataSource);
-
-      if (mounted) setState(() {});
+      await _player.setVolume(_muted ? 0.0 : 100.0);
+      await _player.open(media_kit_pkg.Media(cleanUrl), play: true);
     } catch (e) {
       debugPrint('[WatchVastAdOverlay] Failed to initialize video: $e');
       if (mounted && !_finished) {
@@ -170,11 +168,11 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
     _finished = true;
     _ticker?.cancel();
     _safetyTimeout?.cancel();
+    _playerStateSub?.cancel();
+    _positionSub?.cancel();
     try {
-      _betterPlayerController?.pause();
-      _betterPlayerController?.dispose();
+      _player.dispose();
     } catch (_) {}
-    _betterPlayerController = null;
     widget.onFinished?.call();
     widget.onAdClosed?.call(completed);
   }
@@ -204,11 +202,9 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
   }
 
   void _toggleMute() {
-    final controller = _betterPlayerController;
-    if (controller == null) return;
     setState(() {
       _muted = !_muted;
-      controller.setVolume(_muted ? 0.0 : 1.0);
+      _player.setVolume(_muted ? 0.0 : 100.0);
     });
   }
 
@@ -223,32 +219,43 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
   void dispose() {
     _ticker?.cancel();
     _safetyTimeout?.cancel();
+    _playerStateSub?.cancel();
+    _positionSub?.cancel();
     try {
-      _betterPlayerController?.dispose();
+      _player.dispose();
     } catch (_) {}
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final controller = _betterPlayerController;
-
     return Container(
       color: Colors.black,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (_isInitialized && controller != null)
-            Positioned.fill(
-              child: better_player.BetterPlayer(controller: controller),
-            )
-          else
-            const Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: Colors.amber,
-              ),
+          // Ad Video Player using media_kit Video widget
+          Positioned.fill(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                media_kit_video_pkg.Video(
+                  controller: _videoController,
+                  fit: BoxFit.cover,
+                  controls: media_kit_video_pkg.NoVideoControls,
+                ),
+                if (!_isInitialized)
+                  const Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.amber,
+                    ),
+                  ),
+              ],
             ),
+          ),
+
+          // Top Bar (AD badge + Remaining timer + Mute button)
           Positioned(
             top: MediaQuery.paddingOf(context).top + 12,
             left: 16,
@@ -260,6 +267,12 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
                   decoration: BoxDecoration(
                     color: Colors.amber.shade600,
                     borderRadius: BorderRadius.circular(6),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black38,
+                        blurRadius: 4,
+                      ),
+                    ],
                   ),
                   child: const Text(
                     'AD',
@@ -267,15 +280,16 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
                       color: Colors.black,
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
+                      letterSpacing: 1.0,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                if (_isInitialized && controller != null)
+                if (_isInitialized)
                   Builder(
                     builder: (context) {
-                      final pos = controller.videoPlayerController?.value.position ?? Duration.zero;
-                      final total = controller.videoPlayerController?.value.duration ?? Duration.zero;
+                      final pos = _player.state.position;
+                      final total = _player.state.duration;
                       final remaining = total > pos ? total - pos : Duration.zero;
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -316,6 +330,8 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
               ],
             ),
           ),
+
+          // Bottom Bar (Click-Through Learn More + Skip Ad button)
           Positioned(
             bottom: MediaQuery.paddingOf(context).bottom + 20,
             left: 16,
@@ -330,6 +346,13 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.95),
                         borderRadius: BorderRadius.circular(12),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black45,
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
@@ -365,6 +388,12 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
                         color: (_canSkip || _loadFailed) ? Colors.white70 : Colors.white24,
                         width: 1.0,
                       ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black45,
+                          blurRadius: 6,
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
