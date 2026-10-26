@@ -26,7 +26,8 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
   late final media_kit_pkg.Player _player;
   late final media_kit_video_pkg.VideoController _videoController;
   
-  StreamSubscription<media_kit_pkg.PlayerState>? _playerStateSub;
+  // DIPERBAIKI: Menggunakan StreamSubscription<bool> agar cocok dengan stream.completed
+  StreamSubscription<bool>? _playerStateSub;
   StreamSubscription<Duration>? _positionSub;
 
   Timer? _ticker;
