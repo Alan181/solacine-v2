@@ -1,10 +1,7 @@
-name: Build Flutter Release
+Name: Build Flutter Release
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_dispatch: # Build HANYA akan berjalan jika Anda klik manual di tab Actions
 
 jobs:
   build:
