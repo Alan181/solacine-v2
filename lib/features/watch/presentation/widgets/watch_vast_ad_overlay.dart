@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:better_player/better_player.dart';
+import 'package:better_player/better_player.dart' as better_player;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../ads/application/vast_ad_service.dart';
@@ -22,7 +22,7 @@ class WatchVastAdOverlay extends StatefulWidget {
 }
 
 class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
-  BetterPlayerController? _betterPlayerController;
+  better_player.BetterPlayerController? _betterPlayerController;
   Timer? _ticker;
   Timer? _safetyTimeout;
   late int _remainingSkipSeconds;
@@ -64,19 +64,19 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
         return;
       }
 
-      final betterPlayerConfiguration = BetterPlayerConfiguration(
+      final betterPlayerConfiguration = better_player.BetterPlayerConfiguration(
         aspectRatio: 9 / 16,
         fit: BoxFit.cover,
         autoPlay: true,
         looping: false,
         muted: _muted,
-        controlsConfiguration: const BetterPlayerControlsConfiguration(
+        controlsConfiguration: const better_player.BetterPlayerControlsConfiguration(
           showControls: false, // Custom controls handled by overlay
         ),
         eventsListener: (event) {
           if (!mounted) return;
           
-          if (event.betterPlayerEventType == BetterPlayerEventType.initialized) {
+          if (event.betterPlayerEventType == better_player.BetterPlayerEventType.initialized) {
             setState(() {
               _isInitialized = true;
             });
@@ -89,7 +89,7 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
             }
           }
 
-          if (event.betterPlayerEventType == BetterPlayerEventType.finished) {
+          if (event.betterPlayerEventType == better_player.BetterPlayerEventType.finished) {
             if (!_finished) {
               if (!_firedPings.contains('complete')) {
                 _firedPings.add('complete');
@@ -100,9 +100,9 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
             }
           }
 
-          if (event.betterPlayerEventType == BetterPlayerEventType.progress) {
-            final position = _betterPlayerController?.videoPlayerController?.value.position;
-            final duration = _betterPlayerController?.videoPlayerController?.value.duration;
+          if (event.betterPlayerEventType == better_player.BetterPlayerEventType.progress) {
+            final position = _betterPlayerController?.videoPlayer?.value.position;
+            final duration = _betterPlayerController?.videoPlayer?.value.duration;
             if (position != null && duration != null && duration > Duration.zero) {
               _handleTrackingProgress(position, duration);
             }
@@ -110,13 +110,13 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
         },
       );
 
-      final dataSource = BetterPlayerDataSource(
-        BetterPlayerDataSourceType.network,
+      final dataSource = better_player.BetterPlayerDataSource(
+        better_player.BetterPlayerDataSourceType.network,
         cleanUrl,
-        videoFormat: BetterPlayerVideoFormat.hls,
+        videoFormat: better_player.BetterPlayerVideoFormat.hls,
       );
 
-      _betterPlayerController = BetterPlayerController(betterPlayerConfiguration);
+      _betterPlayerController = better_player.BetterPlayerController(betterPlayerConfiguration);
       await _betterPlayerController?.setupDataSource(dataSource);
 
       if (mounted) setState(() {});
@@ -245,7 +245,7 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
           // Ad Video Player using BetterPlayer
           if (_isInitialized && controller != null)
             Positioned.fill(
-              child: BetterPlayer(controller: controller),
+              child: better_player.BetterPlayer(controller: controller),
             )
           else
             const Center(
@@ -288,8 +288,8 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
                 if (_isInitialized && controller != null)
                   Builder(
                     builder: (context) {
-                      final pos = controller.videoPlayerController?.value.position ?? Duration.zero;
-                      final total = controller.videoPlayerController?.value.duration ?? Duration.zero;
+                      final pos = controller.videoPlayer?.value.position ?? Duration.zero;
+                      final total = controller.videoPlayer?.value.duration ?? Duration.zero;
                       final remaining = total > pos ? total - pos : Duration.zero;
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
