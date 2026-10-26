@@ -137,76 +137,71 @@ class WatchVideoPlayerSection extends StatelessWidget {
         ),
         // Center overlay: iOS loading spinner when buffering/loading, OR play button when paused
         if (ready && isUnlocked && hasVideo && videoError == null && p != null)
-          StreamBuilder(
+          StreamBuilder<bool>(
             stream: p.stream.buffering,
-            builder: (context, _) {
+            builder: (context, bufferingSnapshot) {
               return StreamBuilder<bool>(
-                stream: p.stream.buffering,
-                builder: (context, bufferingSnapshot) {
-                  return StreamBuilder<bool>(
-                    stream: p.stream.playing,
-                    builder: (context, playingSnapshot) {
-                      final isBuffering = (bufferingSnapshot.data ?? false) || videoLoading;
-                      
-                      if (isBuffering) {
-                        return Center(
-                          child: Container(
-                            width: 68,
-                            height: 68,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.50),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.20),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: const Center(
-                              child: CupertinoActivityIndicator(
-                                radius: 16,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-
-                      final isPlaying = playingSnapshot.data ?? true;
-                      final isPaused = !isPlaying;
-                      if (!isPaused) return const SizedBox.shrink();
-
-                      return Center(
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            if (onTogglePlayback != null) {
-                              onTogglePlayback!();
-                            } else {
-                              p.play();
-                            }
-                          },
-                          child: Container(
-                            width: 74,
-                            height: 74,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.55),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.8),
-                              boxShadow: [
-                                BoxShadow(color: Colors.black.withValues(alpha: 0.50), blurRadius: 24, spreadRadius: 2),
-                              ],
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.play_arrow_rounded,
-                                color: Colors.white,
-                                size: 48,
-                              ),
-                            ),
+                stream: p.stream.playing,
+                builder: (context, playingSnapshot) {
+                  final isBuffering = (bufferingSnapshot.data ?? false) || videoLoading;
+                  
+                  if (isBuffering) {
+                    return Center(
+                      child: Container(
+                        width: 68,
+                        height: 68,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.50),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.20),
+                            width: 1.5,
                           ),
                         ),
-                      );
-                    },
+                        child: const Center(
+                          child: CupertinoActivityIndicator(
+                            radius: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final isPlaying = playingSnapshot.data ?? true;
+                  final isPaused = !isPlaying;
+                  if (!isPaused) return const SizedBox.shrink();
+
+                  return Center(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        if (onTogglePlayback != null) {
+                          onTogglePlayback!();
+                        } else {
+                          p.play();
+                        }
+                      },
+                      child: Container(
+                        width: 74,
+                        height: 74,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.8),
+                          boxShadow: [
+                            BoxShadow(color: Colors.black.withValues(alpha: 0.50), blurRadius: 24, spreadRadius: 2),
+                          ],
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.play_arrow_rounded,
+                            color: Colors.white,
+                            size: 48,
+                          ),
+                        ),
+                      ),
+                    ),
                   );
                 },
               );
