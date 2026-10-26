@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:better_player/better_player.dart';
+import 'package:media_kit_video/media_kit_video.dart' as media_kit_video;
 import 'watch_video_player_section.dart';
 import 'watch_like_burst_overlay.dart';
 import 'watch_video_status_overlays.dart';
@@ -17,7 +17,7 @@ class WatchEpisodePageItem extends StatelessWidget {
     required this.epNum,
     required this.ep,
     required this.isActive,
-    required this.betterPlayerController,
+    required this.mediaKitVideoController, // Diubah dari betterPlayerController ke media_kit
     required this.ready,
     required this.isUnlocked,
     required this.hasVideo,
@@ -91,7 +91,7 @@ class WatchEpisodePageItem extends StatelessWidget {
   final int epNum;
   final dynamic ep;
   final bool isActive;
-  final BetterPlayerController? betterPlayerController;
+  final media_kit_video.VideoController? mediaKitVideoController; // Menggunakan tipe data media_kit
   final bool ready;
   final bool isUnlocked;
   final bool hasVideo;
@@ -178,7 +178,7 @@ class WatchEpisodePageItem extends StatelessWidget {
             hasVideo: hasVideo,
             videoLoading: videoLoading,
             videoError: videoError,
-            betterPlayerController: betterPlayerController,
+            mediaKitVideoController: mediaKitVideoController, // Diteruskan ke section player
             bg: bg,
             ep: ep,
             series: series,
@@ -285,7 +285,7 @@ class WatchEpisodePageItem extends StatelessWidget {
               epNum: epNum,
               totalEpisodes: totalEpisodes,
               onToggleControls: onToggleControls,
-              onSafePopOrHome: onSafePopOrHome, // Menggunakan parameter onSafePopOrHome dari constructor
+              onSafePopOrHome: onSafePopOrHome,
               isUnlocked: isUnlocked,
             ),
         ],
