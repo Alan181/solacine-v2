@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:media_kit/media_kit.dart';
+import 'package:better_player/better_player.dart';
 
 class WatchSeekBar extends StatelessWidget {
   const WatchSeekBar({
@@ -9,35 +9,49 @@ class WatchSeekBar extends StatelessWidget {
     required this.inactiveColor,
   });
 
-  final Player controller; // Diubah dari VideoPlayerController ke Player media_kit
+  final BetterPlayerController controller; // Diubah dari Player media_kit ke BetterPlayerController
   final Color activeColor;
   final Color inactiveColor;
 
   @override
   Widget build(BuildContext context) {
-    final player = controller;
+    // Mengambil nilai posisi dan durasi dari BetterPlayer videoPlayerController
+    final videoController = controller.videoPlayerController;
 
-    return StreamBuilder<Duration>(
-      stream: player.stream.position,
-      builder: (context, snapshot) {
-        final position = snapshot.data ?? player.state.position;
-        final duration = player.state.duration;
+    if (videoController == null) {
+      return SizedBox(
+        height: 22,
+        child: Container(
+          height: 3.5,
+          decoration: BoxDecoration(
+            color: inactiveColor,
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+      );
+    }
+
+    return ValueListenableBuilder(
+      valueListenable: videoController,
+      builder: (context, value, child) {
+        final position = value.position;
+        final duration = value.duration ?? Duration.zero;
 
         final dur = duration.inMilliseconds;
         final pos = position.inMilliseconds;
-        final value = dur <= 0 ? 0.0 : (pos / dur).clamp(0.0, 1.0);
+        final progressValue = dur <= 0 ? 0.0 : (pos / dur).clamp(0.0, 1.0);
 
         return LayoutBuilder(
           builder: (context, constraints) {
             final w = constraints.maxWidth;
-            final activeW = w * value;
+            final activeW = w * progressValue;
             final thumbX = (activeW - 5).clamp(0.0, w - 10);
 
             void seek(Offset local) {
               if (dur <= 0) return;
               final next = (local.dx / w).clamp(0.0, 1.0);
-              // media_kit menggunakan player.seek(Duration)
-              player.seek(Duration(milliseconds: (dur * next).round()));
+              final targetDuration = Duration(milliseconds: (dur * next).round());
+              controller.seekTo(targetDuration);
             }
 
             return GestureDetector(
