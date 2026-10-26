@@ -234,9 +234,9 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
           if (isInitialized && vc != null)
             Center(
               child: AspectRatio(
-                aspectRatio: p.state.width > 0 && p.state.height > 0
-                    ? p.state.width.toDouble() / p.state.height.toDouble()
-                    : 9 / 16,
+                aspectRatio: (p.state.width ?? 0) > 0 && (p.state.height ?? 0) > 0
+                    ? (p.state.width ?? 9).toDouble() / (p.state.height ?? 16).toDouble()
+                    : 9.0 / 16.0,
                 child: Video(
                   controller: vc,
                   controls: NoVideoControls,
