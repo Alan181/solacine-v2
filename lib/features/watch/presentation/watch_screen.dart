@@ -1188,7 +1188,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           fit: BoxFit.cover,
           autoPlay: shouldPlay && widget.isActive,
           looping: false,
-          controlsConfiguration: BetterPlayerControlsConfiguration(
+          controlsConfiguration: const BetterPlayerControlsConfiguration(
             showControls: false,
           ),
         );
