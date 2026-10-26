@@ -1,4 +1,4 @@
-Import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'watch_video_player_section.dart';
 import 'watch_like_burst_overlay.dart';
