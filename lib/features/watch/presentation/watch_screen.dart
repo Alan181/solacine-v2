@@ -1242,7 +1242,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           }
         });
 
-        // Buka media jika belum dibuka oleh preload manager
         if (!player.state.playlist.medias.any((m) => m.uri == u)) {
           await player.open(Media(u), play: false);
         }
