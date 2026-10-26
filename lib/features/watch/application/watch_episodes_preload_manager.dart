@@ -1,45 +1,52 @@
-import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:media_kit/media_kit.dart' as media_kit_pkg;
 
-/// Preloading manager for drama series episodes.
-/// Pre-warms video cache or tracks preloaded URLs for upcoming episodes
-/// so swiping between episodes is instantaneous.
+/// Preloading manager for drama series episodes using media_kit.
+/// Pre-warms video player buffers for upcoming episodes so swiping
+/// between episodes is instantaneous with zero stutter or loading spinner.
 class WatchEpisodesPreloadManager {
   WatchEpisodesPreloadManager._();
 
-  static final Set<String> _preloadedUrls = <String>{};
+  static final Map<String, media_kit_pkg.Player> _playerCache = <String, media_kit_pkg.Player>{};
   static final Set<String> _inFlightUrls = <String>{};
 
-  /// Takes a pre-warmed reference (returns null since BetterPlayer initializes dynamically).
-  static dynamic takePrewarmed(String url) {
+  /// Takes a pre-warmed initialized player for [url], if available.
+  static media_kit_pkg.Player? takePrewarmed(String url) {
+    final cleanUrl = url.trim();
+    if (cleanUrl.isEmpty) return null;
+    final p = _playerCache.remove(cleanUrl);
+    if (p != null) {
+      return p;
+    }
     return null;
   }
 
-  /// Checks if [url] is already tracked/preloaded.
+  /// Checks if [url] is already pre-warmed.
   static bool hasPrewarmed(String url) {
     final cleanUrl = url.trim();
-    return _preloadedUrls.contains(cleanUrl);
+    return _playerCache.containsKey(cleanUrl);
   }
 
-  /// Pre-warms or marks the video URL for [url] in the background.
+  /// Pre-warms and buffers the video start for [url] in the background using media_kit.
   static Future<void> preloadUrl(String url) async {
     final cleanUrl = url.trim();
     if (cleanUrl.isEmpty) return;
-    if (_preloadedUrls.contains(cleanUrl) || _inFlightUrls.contains(cleanUrl)) return;
+    if (_playerCache.containsKey(cleanUrl) || _inFlightUrls.contains(cleanUrl)) return;
 
     _inFlightUrls.add(cleanUrl);
     try {
-      // BetterPlayer menangani caching HLS secara native di ExoPlayer/AVPlayer.
-      // Kita cukup menandai URL ini sebagai preloaded/cached agar siap dipanggil.
-      await Future.delayed(const Duration(milliseconds: 100)); // Simulasi async background task ringan
-      
-      _preloadedUrls.add(cleanUrl);
+      final player = media_kit_pkg.Player();
+      // Buka media dengan autoplay false agar dia hanya melakukan buffering di background
+      await player.open(media_kit_pkg.Media(cleanUrl), play: false);
 
-      // Keep maximum limit to prevent memory bloat
-      while (_preloadedUrls.length > 5) {
-        final oldestKey = _preloadedUrls.first;
-        _preloadedUrls.remove(oldestKey);
+      // Keep maximum 2 pre-warmed players to prevent RAM bloat
+      while (_playerCache.length >= 2) {
+        final oldestKey = _playerCache.keys.first;
+        final oldest = _playerCache.remove(oldestKey);
+        try {
+          oldest?.dispose();
+        } catch (_) {}
       }
+      _playerCache[cleanUrl] = player;
     } catch (_) {
       // Ignore background preload errors
     } finally {
@@ -47,9 +54,14 @@ class WatchEpisodesPreloadManager {
     }
   }
 
-  /// Disposes all cached pre-warmed references.
+  /// Disposes all cached pre-warmed players.
   static void disposeAll() {
-    _preloadedUrls.clear();
+    for (final p in _playerCache.values) {
+      try {
+        p.dispose();
+      } catch (_) {}
+    }
+    _playerCache.clear();
     _inFlightUrls.clear();
   }
 }
