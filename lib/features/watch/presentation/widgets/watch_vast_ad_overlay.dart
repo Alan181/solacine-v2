@@ -70,7 +70,7 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
         autoPlay: true,
         looping: false,
         muted: _muted,
-        controlsConfiguration: BetterPlayerControlsConfiguration(
+        controlsConfiguration: const BetterPlayerControlsConfiguration(
           showControls: false, // Custom controls handled by overlay
         ),
         eventsListener: (event) {
