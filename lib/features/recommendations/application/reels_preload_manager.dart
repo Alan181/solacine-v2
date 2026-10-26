@@ -61,7 +61,7 @@ class ReelsPreloadManager {
         final player = Player();
         // Buka media di background tanpa langsung memutar suaranya
         await player.open(Media(videoUrl), play: false);
-        await player.setLooping(PlaylistMode.single);
+        await player.setPlaylistMode(PlaylistMode.single);
 
         // Keep maximum 2 pre-warmed players to prevent RAM bloat
         if (_playerCache.length >= 2) {
