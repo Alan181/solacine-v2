@@ -229,7 +229,7 @@ class WatchApi {
     }
   }
 
-  // Fungsi untuk mengambil data serial acak untuk fitur auto-switch film
+  // TAMBAHAN BARU: Fungsi untuk mengambil data serial acak untuk fitur auto-switch film
   Future<RandomSeriesDto?> getRandomSeries({required String currentSlug}) async {
     try {
       final res = await _dio.get<Map<String, dynamic>>(
@@ -244,20 +244,6 @@ class WatchApi {
     } catch (_) {
       return null;
     }
-  }
-
-  // KLAIM REWARD TONTON: Mengembalikan status true jika limit 1 jam series ini sudah habis
-  Future<bool> claimWatchReward({required int seriesId}) async {
-    final res = await _dio.post<Map<String, dynamic>>(
-      '/v1/rewards/watch-duration',
-      data: {'series_id': seriesId},
-    );
-    final map = res.data ?? const <String, dynamic>{};
-    if (map['status'] != true) {
-      throw Exception((map['message'] as String?) ?? 'Request failed');
-    }
-    final data = (map['data'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};
-    return data['limit_reached'] == true;
   }
 }
 
