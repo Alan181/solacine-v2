@@ -1,56 +1,54 @@
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
 
 /// Preloading manager for drama series episodes.
-/// Pre-warms video player buffers for upcoming episodes so swiping
-/// between episodes is instantaneous with zero stutter or loading spinner.
+/// Pre-warms video player buffers for upcoming episodes using media_kit
+/// so swiping between episodes is instantaneous with zero stutter or loading spinner.
 class WatchEpisodesPreloadManager {
   WatchEpisodesPreloadManager._();
 
-  static final Map<String, VideoPlayerController> _controllerCache = <String, VideoPlayerController>{};
+  static final Map<String, Player> _playerCache = <String, Player>{};
   static final Set<String> _inFlightUrls = <String>{};
 
-  /// Takes a pre-warmed initialized controller for [url], if available.
-  static VideoPlayerController? takePrewarmed(String url) {
+  /// Takes a pre-warmed initialized player for [url], if available.
+  static Player? takePrewarmed(String url) {
     final cleanUrl = url.trim();
     if (cleanUrl.isEmpty) return null;
-    final c = _controllerCache.remove(cleanUrl);
-    if (c != null && c.value.isInitialized) {
-      return c;
+    final player = _playerCache.remove(cleanUrl);
+    if (player != null) {
+      return player;
     }
     try {
-      c?.dispose();
+      player?.dispose();
     } catch (_) {}
     return null;
   }
 
-  /// Checks if [url] is already pre-warmed and ready.
+  /// Checks if [url] is already pre-warmed.
   static bool hasPrewarmed(String url) {
-    final cleanUrl = url.trim();
-    final c = _controllerCache[cleanUrl];
-    return c != null && c.value.isInitialized;
+    return _playerCache.containsKey(url.trim());
   }
 
   /// Pre-warms and buffers the video start for [url] in the background.
   static Future<void> preloadUrl(String url) async {
     final cleanUrl = url.trim();
     if (cleanUrl.isEmpty) return;
-    if (_controllerCache.containsKey(cleanUrl) || _inFlightUrls.contains(cleanUrl)) return;
+    if (_playerCache.containsKey(cleanUrl) || _inFlightUrls.contains(cleanUrl)) return;
 
     _inFlightUrls.add(cleanUrl);
     try {
-      final c = VideoPlayerController.networkUrl(Uri.parse(cleanUrl));
-      await c.initialize();
-      await c.setLooping(true);
+      final player = Player();
+      // Buka media di background tanpa langsung memutar suaranya
+      await player.open(Media(cleanUrl), play: false);
 
-      // Keep maximum 2 pre-warmed controllers to prevent RAM bloat
-      while (_controllerCache.length >= 2) {
-        final oldestKey = _controllerCache.keys.first;
-        final oldest = _controllerCache.remove(oldestKey);
+      // Keep maximum 2 pre-warmed players to prevent RAM bloat
+      while (_playerCache.length >= 2) {
+        final oldestKey = _playerCache.keys.first;
+        final oldest = _playerCache.remove(oldestKey);
         try {
           oldest?.dispose();
         } catch (_) {}
       }
-      _controllerCache[cleanUrl] = c;
+      _playerCache[cleanUrl] = player;
     } catch (_) {
       // Ignore background preload errors
     } finally {
@@ -58,14 +56,14 @@ class WatchEpisodesPreloadManager {
     }
   }
 
-  /// Disposes all cached pre-warmed controllers.
+  /// Disposes all cached pre-warmed players.
   static void disposeAll() {
-    for (final c in _controllerCache.values) {
+    for (final player in _playerCache.values) {
       try {
-        c.dispose();
+        player.dispose();
       } catch (_) {}
     }
-    _controllerCache.clear();
+    _playerCache.clear();
     _inFlightUrls.clear();
   }
 }
