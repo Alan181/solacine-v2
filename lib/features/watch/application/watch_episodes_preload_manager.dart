@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:media_kit/media_kit.dart';
 
 /// Preloading manager for drama series episodes.
@@ -17,9 +18,6 @@ class WatchEpisodesPreloadManager {
     if (player != null) {
       return player;
     }
-    try {
-      player?.dispose();
-    } catch (_) {}
     return null;
   }
 
@@ -36,9 +34,23 @@ class WatchEpisodesPreloadManager {
 
     _inFlightUrls.add(cleanUrl);
     try {
-      final player = Player();
-      // Buka media di background tanpa langsung memutar suaranya
-      await player.open(Media(cleanUrl), play: false);
+      // Optimasi Langkah 2: Menambahkan PlayerConfiguration untuk cache HLS & Buffer (32MB)
+      final player = Player(
+        configuration: const PlayerConfiguration(
+          bufferSize: 32 * 1024 * 1024, // 32 MB demuxer cache size untuk kestabilan HLS stream
+        ),
+      );
+
+      // Buka media di background dengan header opsional jika diperlukan CDN
+      await player.open(
+        Media(
+          cleanUrl,
+          httpHeaders: const {
+            'User-Agent': 'SolacineMobile/1.0',
+          },
+        ), 
+        play: false,
+      );
 
       // Keep maximum 2 pre-warmed players to prevent RAM bloat
       while (_playerCache.length >= 2) {
@@ -49,8 +61,8 @@ class WatchEpisodesPreloadManager {
         } catch (_) {}
       }
       _playerCache[cleanUrl] = player;
-    } catch (_) {
-      // Ignore background preload errors
+    } catch (e) {
+      debugPrint('[WatchEpisodesPreloadManager] Preload error for $cleanUrl: $e');
     } finally {
       _inFlightUrls.remove(cleanUrl);
     }
