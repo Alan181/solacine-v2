@@ -1,41 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:better_player/better_player.dart';
+import 'package:media_kit/media_kit.dart' as media_kit_pkg;
 
 class WatchSeekBar extends StatelessWidget {
   const WatchSeekBar({
     super.key,
-    required this.controller,
+    required this.player,
     required this.activeColor,
     required this.inactiveColor,
   });
 
-  final BetterPlayerController controller; // Diubah dari Player media_kit ke BetterPlayerController
+  final media_kit_pkg.Player player; // Diubah dari BetterPlayerController ke media_kit Player
   final Color activeColor;
   final Color inactiveColor;
 
   @override
   Widget build(BuildContext context) {
-    // Mengambil nilai posisi dan durasi dari BetterPlayer videoPlayerController
-    final videoController = controller.videoPlayerController;
-
-    if (videoController == null) {
-      return SizedBox(
-        height: 22,
-        child: Container(
-          height: 3.5,
-          decoration: BoxDecoration(
-            color: inactiveColor,
-            borderRadius: BorderRadius.circular(99),
-          ),
-        ),
-      );
-    }
-
-    return ValueListenableBuilder(
-      valueListenable: videoController,
-      builder: (context, value, child) {
-        final position = value.position;
-        final duration = value.duration ?? Duration.zero;
+    return StreamBuilder<media_kit_pkg.PlayerState>(
+      stream: player.stream,
+      builder: (context, snapshot) {
+        final state = snapshot.data ?? player.state;
+        final position = state.position;
+        final duration = state.duration;
 
         final dur = duration.inMilliseconds;
         final pos = position.inMilliseconds;
@@ -51,7 +36,7 @@ class WatchSeekBar extends StatelessWidget {
               if (dur <= 0) return;
               final next = (local.dx / w).clamp(0.0, 1.0);
               final targetDuration = Duration(milliseconds: (dur * next).round());
-              controller.seekTo(targetDuration);
+              player.seek(targetDuration);
             }
 
             return GestureDetector(
