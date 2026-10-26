@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
 import 'watch_video_player_section.dart';
 import 'watch_like_burst_overlay.dart';
 import 'watch_video_status_overlays.dart';
@@ -91,7 +91,7 @@ class WatchEpisodePageItem extends StatelessWidget {
   final int epNum;
   final dynamic ep;
   final bool isActive;
-  final VideoPlayerController? player;
+  final Player? player; // Diubah dari VideoPlayerController ke Player media_kit
   final bool ready;
   final bool isUnlocked;
   final bool hasVideo;
