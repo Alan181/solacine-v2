@@ -89,6 +89,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> with WidgetsBindingOb
       if (i >= index && i <= index + 2) {
         final slug = it.watchSlug.trim().isNotEmpty ? it.watchSlug : it.slug;
         final ep = it.watchEpisodeNumber > 0 ? it.watchEpisodeNumber : 1;
+        // Memanggil prefetch menggunakan ReelsPreloadManager yang sudah berbasis media_kit
         ReelsPreloadManager.prefetch(ref: ref, slug: slug, episode: ep);
       }
     }
