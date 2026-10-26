@@ -1141,7 +1141,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       _activeVideoUrl = url;
     });
 
-    // AGGRESSIVE DISPOSE: Hancurkan player lama agar tidak leak di RAM
     final oldPlayer = _player;
     _player = null;
     _videoController = null;
@@ -1945,7 +1944,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                     epNum: epNum,
                     ep: ep,
                     isActive: isActive,
-                    betterPlayerController: mediaKitVideoController, // Diteruskan ke widget item
+                    mediaKitVideoController: mediaKitVideoController, // SUDAH DIPERBAIKI (sesuai dengan WatchEpisodePageItem)
                     ready: ready,
                     isUnlocked: isUnlocked,
                     hasVideo: hasVideo,
