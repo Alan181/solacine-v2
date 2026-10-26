@@ -39,10 +39,8 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
     _remainingSkipSeconds = widget.adData.skipSeconds;
     _canSkip = _remainingSkipSeconds <= 0;
 
-    // 1. Start skip timer immediately
     _startSkipTimer();
 
-    // 2. Safety timeout: if ad video fails to load within 8 seconds, dismiss safely
     _safetyTimeout = Timer(const Duration(seconds: 8), () {
       if (!mounted || _finished) return;
       if (!_isInitialized) {
@@ -52,7 +50,6 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
       }
     });
 
-    // 3. Initialize BetterPlayer for VAST ad
     _initVideo();
   }
 
@@ -71,7 +68,7 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
         looping: false,
         muted: _muted,
         controlsConfiguration: const better_player.BetterPlayerControlsConfiguration(
-          showControls: false, // Custom controls handled by overlay
+          showControls: false,
         ),
         eventsListener: (event) {
           if (!mounted) return;
@@ -80,7 +77,6 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
             setState(() {
               _isInitialized = true;
             });
-            // Fire impression & start tracking
             if (!_firedPings.contains('start')) {
               _firedPings.add('start');
               VastAdService.sendPings(widget.adData.impressions);
@@ -101,8 +97,8 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
           }
 
           if (event.betterPlayerEventType == better_player.BetterPlayerEventType.progress) {
-            final position = _betterPlayerController?.videoPlayer?.value.position;
-            final duration = _betterPlayerController?.videoPlayer?.value.duration;
+            final position = _betterPlayerController?.videoPlayerController?.value.position;
+            final duration = _betterPlayerController?.videoPlayerController?.value.duration;
             if (position != null && duration != null && duration > Duration.zero) {
               _handleTrackingProgress(position, duration);
             }
@@ -242,7 +238,6 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Ad Video Player using BetterPlayer
           if (_isInitialized && controller != null)
             Positioned.fill(
               child: better_player.BetterPlayer(controller: controller),
@@ -254,8 +249,6 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
                 color: Colors.amber,
               ),
             ),
-
-          // Top Bar (AD badge + Remaining timer + Mute button)
           Positioned(
             top: MediaQuery.paddingOf(context).top + 12,
             left: 16,
@@ -267,12 +260,6 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
                   decoration: BoxDecoration(
                     color: Colors.amber.shade600,
                     borderRadius: BorderRadius.circular(6),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black38,
-                        blurRadius: 4,
-                      ),
-                    ],
                   ),
                   child: const Text(
                     'AD',
@@ -280,7 +267,6 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
                       color: Colors.black,
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
-                      letterSpacing: 1.0,
                     ),
                   ),
                 ),
@@ -288,8 +274,8 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
                 if (_isInitialized && controller != null)
                   Builder(
                     builder: (context) {
-                      final pos = controller.videoPlayer?.value.position ?? Duration.zero;
-                      final total = controller.videoPlayer?.value.duration ?? Duration.zero;
+                      final pos = controller.videoPlayerController?.value.position ?? Duration.zero;
+                      final total = controller.videoPlayerController?.value.duration ?? Duration.zero;
                       final remaining = total > pos ? total - pos : Duration.zero;
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -330,8 +316,6 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
               ],
             ),
           ),
-
-          // Bottom Bar (Click-Through Learn More + Skip Ad button)
           Positioned(
             bottom: MediaQuery.paddingOf(context).bottom + 20,
             left: 16,
@@ -346,13 +330,6 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.95),
                         borderRadius: BorderRadius.circular(12),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black45,
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
@@ -388,12 +365,6 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
                         color: (_canSkip || _loadFailed) ? Colors.white70 : Colors.white24,
                         width: 1.0,
                       ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black45,
-                          blurRadius: 6,
-                        ),
-                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
