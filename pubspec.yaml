@@ -66,7 +66,7 @@ dependencies:
   flutter_svg: ^2.3.0
   media_kit: ^1.1.10
   media_kit_video: ^1.2.4
-  media_kit_libs: ^1.0.5
+  media_kit_libs_android_ios: ^1.0.6
 
 dev_dependencies:
   flutter_test:
