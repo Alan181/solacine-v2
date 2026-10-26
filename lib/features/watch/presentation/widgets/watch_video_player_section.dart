@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:solacine_mobile/app/i18n.dart';
 import 'package:solacine_mobile/shared/widgets/app_cached_image.dart';
 import 'watch_seek_bar.dart';
@@ -36,7 +37,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
   final bool hasVideo;
   final bool videoLoading;
   final String? videoError;
-  final VideoPlayerController? player;
+  final Player? player; // Diubah dari VideoPlayerController ke Player media_kit
   final String bg;
   final dynamic ep;
   final dynamic series;
@@ -68,9 +69,12 @@ class WatchVideoPlayerSection extends StatelessWidget {
             child: FittedBox(
               fit: BoxFit.cover,
               child: SizedBox(
-                width: p.value.size.width,
-                height: p.value.size.height,
-                child: VideoPlayer(p),
+                width: p.state.width.toDouble() > 0 ? p.state.width.toDouble() : 9.0,
+                height: p.state.height.toDouble() > 0 ? p.state.height.toDouble() : 16.0,
+                child: Video(
+                  controller: VideoController(p),
+                  controls: NoVideoControls,
+                ),
               ),
             ),
           ),
@@ -124,68 +128,78 @@ class WatchVideoPlayerSection extends StatelessWidget {
         ),
         // Center overlay: iOS loading spinner when buffering/loading, OR play button when paused
         if (ready && isUnlocked && hasVideo && videoError == null && p != null)
-          AnimatedBuilder(
-            animation: p,
+          StreamBuilder(
+            stream: p.stream.bufferNames, // Menggunakan stream media_kit untuk status buffer/loading
             builder: (context, _) {
-              final v = p.value;
-              final isBuffering = v.isBuffering || videoLoading || !v.isInitialized;
+              return StreamBuilder<bool>(
+                stream: p.stream.buffering,
+                builder: (context, bufferingSnapshot) {
+                  return StreamBuilder<bool>(
+                    stream: p.stream.playing,
+                    builder: (context, playingSnapshot) {
+                      final isBuffering = (bufferingSnapshot.data ?? false) || videoLoading;
+                      
+                      if (isBuffering) {
+                        return Center(
+                          child: Container(
+                            width: 68,
+                            height: 68,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.50),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.20),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: const Center(
+                              child: CupertinoActivityIndicator(
+                                radius: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
 
-              if (isBuffering) {
-                return Center(
-                  child: Container(
-                    width: 68,
-                    height: 68,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.50),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.20),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: const Center(
-                      child: CupertinoActivityIndicator(
-                        radius: 16,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                );
-              }
+                      final isPlaying = playingSnapshot.data ?? true;
+                      final isPaused = !isPlaying;
+                      if (!isPaused) return const SizedBox.shrink();
 
-              final isPaused = !v.isPlaying;
-              if (!isPaused) return const SizedBox.shrink();
-
-              return Center(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    if (onTogglePlayback != null) {
-                      onTogglePlayback!();
-                    } else {
-                      p.play();
-                    }
-                  },
-                  child: Container(
-                    width: 74,
-                    height: 74,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.8),
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.50), blurRadius: 24, spreadRadius: 2),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: 48,
-                      ),
-                    ),
-                  ),
-                ),
+                      return Center(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            if (onTogglePlayback != null) {
+                              onTogglePlayback!();
+                            } else {
+                              p.play();
+                            }
+                          },
+                          child: Container(
+                            width: 74,
+                            height: 74,
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.55),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.8),
+                              boxShadow: [
+                                BoxShadow(color: Colors.black.withValues(alpha: 0.50), blurRadius: 24, spreadRadius: 2),
+                              ],
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.play_arrow_rounded,
+                                color: Colors.white,
+                                size: 48,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               );
             },
           ),
@@ -216,7 +230,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildBottomControls(BuildContext context, AppI18n t, VideoPlayerController p) {
+  List<Widget> _buildBottomControls(BuildContext context, AppI18n t, Player p) {
     if (reelsPreview) {
       // In Reels: Clean, minimal bottom scrub bar in pure GREY tones! Always visible!
       return [
@@ -250,12 +264,13 @@ class WatchVideoPlayerSection extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (ready && isUnlocked)
-                  AnimatedBuilder(
-                    animation: p,
-                    builder: (context, _) {
-                      final v = p.value;
+                  StreamBuilder<Duration>(
+                    stream: p.stream.position,
+                    builder: (context, snapshot) {
+                      final position = snapshot.data ?? p.state.position;
+                      final duration = p.state.duration;
                       return Text(
-                        '${fmtDuration(v.position)} / ${fmtDuration(v.duration)}',
+                        '${fmtDuration(position)} / ${fmtDuration(duration)}',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.88),
                           fontSize: 9.5,
