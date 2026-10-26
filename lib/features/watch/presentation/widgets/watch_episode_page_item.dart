@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:media_kit/media_kit.dart';
+import 'package:better_player/better_player.dart';
 import 'watch_video_player_section.dart';
 import 'watch_like_burst_overlay.dart';
 import 'watch_video_status_overlays.dart';
@@ -17,7 +17,7 @@ class WatchEpisodePageItem extends StatelessWidget {
     required this.epNum,
     required this.ep,
     required this.isActive,
-    required this.player,
+    required this.betterPlayerController, // Diubah dari player ke betterPlayerController
     required this.ready,
     required this.isUnlocked,
     required this.hasVideo,
@@ -91,7 +91,7 @@ class WatchEpisodePageItem extends StatelessWidget {
   final int epNum;
   final dynamic ep;
   final bool isActive;
-  final Player? player; // Diubah dari VideoPlayerController ke Player media_kit
+  final BetterPlayerController? betterPlayerController; // Menggunakan BetterPlayerController
   final bool ready;
   final bool isUnlocked;
   final bool hasVideo;
@@ -178,7 +178,7 @@ class WatchEpisodePageItem extends StatelessWidget {
             hasVideo: hasVideo,
             videoLoading: videoLoading,
             videoError: videoError,
-            player: player,
+            betterPlayerController: betterPlayerController, // Dioper ke WatchVideoPlayerSection
             bg: bg,
             ep: ep,
             series: series,
@@ -285,7 +285,7 @@ class WatchEpisodePageItem extends StatelessWidget {
               epNum: epNum,
               totalEpisodes: totalEpisodes,
               onToggleControls: onToggleControls,
-              onSafePopOrHome: onSafePopOrHome,
+              onSafePopOrHome: _safePopOrHome, // Pastikan terpanggil dengan benar sesuai fungsi
               isUnlocked: isUnlocked,
             ),
         ],
