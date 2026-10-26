@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+Import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'watch_video_player_section.dart';
 import 'watch_like_burst_overlay.dart';
@@ -86,7 +86,6 @@ class WatchEpisodePageItem extends StatelessWidget {
     required this.paywallAnimBuilder,
     required this.episodeNumber,
     this.onTogglePlayback,
-    required this.onRewardEarned,
   });
 
   final int epNum;
@@ -161,17 +160,9 @@ class WatchEpisodePageItem extends StatelessWidget {
   final Widget Function({required int episodeNumber, required Widget child}) paywallAnimBuilder;
   final int episodeNumber;
   final VoidCallback? onTogglePlayback;
-  final Future<void> Function() onRewardEarned;
 
   @override
   Widget build(BuildContext context) {
-    // Memastikan timer reward hanya berjalan jika video aktif, ready, terinisialisasi, dan benar-benar sedang playing (tidak pause)
-    final bool isPlayingVideo = isActive && 
-        ready && 
-        player != null && 
-        player!.value.isInitialized && 
-        player!.value.isPlaying;
-
     return GestureDetector(
       onTap: onTap,
       onDoubleTapDown: onDoubleTapDown,
@@ -229,8 +220,6 @@ class WatchEpisodePageItem extends StatelessWidget {
               rewardDismissed: rewardDismissed,
               onTapReward: onTapReward,
               onDismiss: onDismissReward,
-              isPlaying: isPlayingVideo,
-              onRewardEarned: onRewardEarned,
             ),
             WatchActionButtonsRow(
               bottomPad: bottomPad,
