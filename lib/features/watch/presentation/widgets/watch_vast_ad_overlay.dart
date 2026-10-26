@@ -64,7 +64,7 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
         return;
       }
 
-      BetterPlayerConfiguration betterPlayerConfiguration = BetterPlayerConfiguration(
+      final betterPlayerConfiguration = BetterPlayerConfiguration(
         aspectRatio: 9 / 16,
         fit: BoxFit.cover,
         autoPlay: true,
@@ -101,8 +101,8 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
           }
 
           if (event.betterPlayerEventType == BetterPlayerEventType.progress) {
-            final position = _betterPlayerController?.videoPlayerController?.value.position;
-            final duration = _betterPlayerController?.videoPlayerController?.value.duration;
+            final position = _betterPlayerController?.value?.position;
+            final duration = _betterPlayerController?.value?.duration;
             if (position != null && duration != null && duration > Duration.zero) {
               _handleTrackingProgress(position, duration);
             }
@@ -110,7 +110,7 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
         },
       );
 
-      BetterPlayerDataSource dataSource = BetterPlayerDataSource(
+      final dataSource = BetterPlayerDataSource(
         BetterPlayerDataSourceType.network,
         cleanUrl,
         videoFormat: BetterPlayerVideoFormat.hls,
@@ -288,8 +288,8 @@ class _WatchVastAdOverlayState extends State<WatchVastAdOverlay> {
                 if (_isInitialized && controller != null)
                   Builder(
                     builder: (context) {
-                      final pos = controller.videoPlayerController?.value.position ?? Duration.zero;
-                      final total = controller.videoPlayerController?.value.duration ?? Duration.zero;
+                      final pos = controller.value?.position ?? Duration.zero;
+                      final total = controller.value?.duration ?? Duration.zero;
                       final remaining = total > pos ? total - pos : Duration.zero;
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
