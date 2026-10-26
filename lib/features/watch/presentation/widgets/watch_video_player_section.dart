@@ -69,8 +69,8 @@ class WatchVideoPlayerSection extends StatelessWidget {
             child: FittedBox(
               fit: BoxFit.cover,
               child: SizedBox(
-                width: p.state.width.toDouble() > 0 ? p.state.width.toDouble() : 9.0,
-                height: p.state.height.toDouble() > 0 ? p.state.height.toDouble() : 16.0,
+                width: (p.state.width ?? 0) > 0 ? (p.state.width!).toDouble() : 9.0,
+                height: (p.state.height ?? 0) > 0 ? (p.state.height!).toDouble() : 16.0,
                 child: Video(
                   controller: VideoController(p),
                   controls: NoVideoControls,
@@ -129,7 +129,8 @@ class WatchVideoPlayerSection extends StatelessWidget {
         // Center overlay: iOS loading spinner when buffering/loading, OR play button when paused
         if (ready && isUnlocked && hasVideo && videoError == null && p != null)
           StreamBuilder(
-            stream: p.stream.bufferNames, // Menggunakan stream media_kit untuk status buffer/loading
+            stream: p.stream.buffering,
+ // Menggunakan stream media_kit untuk status buffer/loading
             builder: (context, _) {
               return StreamBuilder<bool>(
                 stream: p.stream.buffering,
