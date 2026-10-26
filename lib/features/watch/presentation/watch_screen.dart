@@ -62,10 +62,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   late PageController _pageController;
   var _index = 0;
   
-  // Pelacak episode terakhir untuk mencegah eksekusi ganda
   int? _lastProcessedEpisode;
-
-  // Variabel Sistem Frekuensi Interval Iklan (per 5 episode berpindah)
   int _episodesSinceLastAd = 0;
   final int _adFrequencyInterval = 5;
 
@@ -91,12 +88,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   var _unlocking = false;
   var _autoUnlockEnabled = false;
   final Set<int> _autoUnlockTriedEpisodes = <int>{};
-  
-  // Pelacak reward harian series yang sudah habis & dismiss per-episode
-  final Set<int> _exhaustedSeriesIds = <int>{};
-  final Set<int> _dismissedRewardEpisodes = <int>{};
-
   late final AnimationController _rewardShake;
+  var _rewardDismissed = false;
   late final AnimationController _guideShake;
   var _showSwipeGuide = false;
   late final AnimationController _paywallAnim;
@@ -118,6 +111,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   final Set<int> _loadedPages = <int>{};
   var _loadingEpisodesPage = false;
   var _inModalSheet = false;
+  var _isNavigatingRandom = false;
 
   @override
   void initState() {
@@ -461,14 +455,20 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   }
 
   Future<void> _navigateToRandomSeries() async {
+    if (_isNavigatingRandom) return;
+    _isNavigatingRandom = true;
+
     try {
       try {
         await _video?.pause();
+        _video?.dispose();
       } catch (_) {}
+      _video = null;
 
       final randomData = await ref.read(watchApiProvider).getRandomSeries(currentSlug: widget.slug);
       
       if (randomData == null || randomData.slug.isEmpty) {
+        _isNavigatingRandom = false;
         if (mounted) context.go('/reels');
         return;
       }
@@ -478,30 +478,12 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
       if (!mounted) return;
 
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => WatchScreen(
-            slug: targetSlug,
-            title: targetTitle,
-            fromReels: true,
-          ),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const begin = Offset(0.0, 1.0);
-            const end = Offset.zero;
-            const curve = Curves.easeInOutCubic;
-            
-            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-            var offsetAnimation = animation.drive(tween);
-
-            return SlideTransition(
-              position: offsetAnimation,
-              child: child,
-            );
-          },
-          transitionDuration: const Duration(milliseconds: 400),
-        ),
-      );
+      final targetPath = '/watch/$targetSlug?title=${Uri.encodeComponent(targetTitle)}&from=reels';
+      
+      // Menggunakan push() agar riwayat stack tersimpan dan tombol kembali (back) aktif berfungsi normal
+      context.push(targetPath);
     } catch (e) {
+      _isNavigatingRandom = false;
       if (mounted) {
         context.go('/reels');
       }
@@ -1229,24 +1211,39 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           final value = c?.value;
           if (value == null || !value.isInitialized) return;
 
-          final bool isAtAbsoluteEnd = value.duration > Duration.zero && value.position >= value.duration;
-          final bool isNearEndPaused = value.duration > Duration.zero && 
-                                       value.position >= value.duration - const Duration(milliseconds: 1000) && 
-                                       !value.isPlaying;
+          final position = value.position;
+          final duration = value.duration;
+          
+          if (duration.inSeconds < 1) return;
 
-          if ((isAtAbsoluteEnd || isNearEndPaused) && !hasTriggeredNext) {
+          final bool isFinished = (position >= duration) || 
+                                 (!value.isPlaying && position >= duration - const Duration(seconds: 3));
+
+          if (isFinished && !hasTriggeredNext) {
             hasTriggeredNext = true;
             
             final currentEpNum = _currentEpisodeNumber;
-            
-            if (_index >= _episodesTotal - 1 || currentEpNum >= _episodesTotal) {
-              _navigateToRandomSeries();
-            } else {
+            final maxEpisodes = _episodesTotal > 0 ? _episodesTotal : (_data?.episodesTotal ?? 0);
+            final nextEpNum = currentEpNum + 1;
+
+            final bool hasNextEpisode = (maxEpisodes > 0 && nextEpNum <= maxEpisodes) || 
+                                        _episodesByNumber.containsKey(nextEpNum);
+
+            if (hasNextEpisode && _index < (maxEpisodes > 0 ? maxEpisodes - 1 : _index + 1)) {
               final nextIndex = _index + 1;
-              if (nextIndex < _episodesTotal && _pageController.hasClients) {
+              if (_pageController.hasClients) {
                 _pageController.animateToPage(
                   nextIndex,
                   duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              }
+            } else {
+              final total = _episodesTotal > 0 ? _episodesTotal : maxEpisodes;
+              if (total > 0 && _pageController.hasClients) {
+                _pageController.animateToPage(
+                  total,
+                  duration: const Duration(milliseconds: 350),
                   curve: Curves.easeInOut,
                 );
               } else {
@@ -1255,7 +1252,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             }
           }
 
-          if (value.position < value.duration - const Duration(seconds: 2)) {
+          if (position < duration - const Duration(seconds: 4)) {
             hasTriggeredNext = false;
           }
         });
@@ -1950,6 +1947,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       );
     }
 
+    final pageViewItemCount = widget.reelsPreview ? 1 : (totalEpisodes + 1);
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -1963,10 +1962,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             const ColoredBox(color: Colors.black),
             NotificationListener<ScrollNotification>(
               onNotification: (notification) {
-                if (notification is ScrollEndNotification && _index >= totalEpisodes - 1) {
-                  if (_pageController.hasClients && _pageController.position.pixels >= _pageController.position.maxScrollExtent) {
-                    _navigateToRandomSeries();
-                  }
+                if (notification is ScrollEndNotification && totalEpisodes > 0 && _index >= totalEpisodes) {
+                  _navigateToRandomSeries();
                 }
                 return false;
               },
@@ -1977,7 +1974,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                 onPageChanged: (i) async {
                   if (widget.reelsPreview) return;
 
-                  if (i >= totalEpisodes || i >= _episodesTotal) {
+                  if (totalEpisodes > 0 && i >= totalEpisodes) {
+                    try {
+                      _video?.pause();
+                    } catch (_) {}
                     _navigateToRandomSeries();
                     return;
                   }
@@ -1989,6 +1989,22 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                   await _handleEpisodeChangeWithAds(epNum);
                 },
                 itemBuilder: (context, i) {
+                  if (!widget.reelsPreview && i >= totalEpisodes) {
+                    return Container(
+                      color: Colors.black,
+                      child: const Center(
+                        child: SizedBox(
+                          width: 32,
+                          height: 32,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
                   final epNum = _episodeNumberForPageIndex(i);
                   final ep = _episodesByNumber[epNum];
                   final isActive = i == _index;
@@ -2051,10 +2067,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                     likeBurstScale: _likeBurstScale,
                     likeBurstOpacity: _likeBurstOpacity,
                     rewardShakeAnimation: _rewardShake,
-                    
-                    // Reward tidak muncul jika reelsPreview, sudah di-dismiss di episode ini, atau limit harian habis
-                    rewardDismissed: widget.reelsPreview || _dismissedRewardEpisodes.contains(epNum) || _exhaustedSeriesIds.contains(series.id),
-                    
+                    rewardDismissed: _rewardDismissed,
                     showSwipeGuide: _showSwipeGuide,
                     guideShakeAnimation: _guideShake,
                     isLiked: _isLiked,
@@ -2085,16 +2098,15 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                         _video?.pause();
                       } catch (_) {}
                       final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&from=reels';
-                      if (context.mounted) {
-                        context.push(target);
-                      }
-                    },
-                    onTapReward: () => _pauseVideoAndPush('/rewards'),
-                    onDismissReward: () {
-                      setState(() {
-                        _dismissedRewardEpisodes.add(epNum); // Dismiss per episode
+                      context.go('/reels');
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (context.mounted) {
+                          context.push(target);
+                        }
                       });
                     },
+                    onTapReward: () => _pauseVideoAndPush('/rewards'),
+                    onDismissReward: () => setState(() => _rewardDismissed = true),
                     onDismissSwipeGuide: _dismissSwipeGuide,
                     onRetryVideo: () => _startEpisodeNumber(epNum),
                     onOpenQualitySheet: (dynamic e) => _openQualitySheet(e as WatchEpisodeDto),
@@ -2109,47 +2121,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                     ),
                     episodeNumber: epNum,
                     onTogglePlayback: _onCenterPlayPressed,
-                    onRewardEarned: () async {
-                      try {
-                        final bool isLimitReached = await ref.read(watchApiProvider).claimWatchReward(seriesId: series.id);
-
-                        if (isLimitReached) {
-                          setState(() {
-                            _exhaustedSeriesIds.add(series.id);
-                          });
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Batas maksimal reward 1 jam untuk film ini telah tercapai.'),
-                                duration: Duration(seconds: 2),
-                                behavior: SnackBarBehavior.floating,
-                              ),
-                            );
-                          }
-                          return;
-                        }
-
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Selamat! Kamu mendapatkan +5 Koin dari menonton.'),
-                              duration: Duration(seconds: 2),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        }
-
-                        try {
-                          final fresh = await ref.read(authApiProvider).me();
-                          await ref.read(authSessionProvider.notifier).setUser(fresh);
-                        } catch (_) {}
-                      } catch (e) {
-                        debugPrint('Gagal klaim koin tonton: $e');
-                      }
-                    },
                   );
                 },
-                itemCount: widget.reelsPreview ? 1 : totalEpisodes,
+                itemCount: pageViewItemCount,
               ),
             ),
             if ((_exitInterstitialBlockedUI || _fullScreenAdOpen) && _activeVastAd == null)
