@@ -5,7 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
-import 'package:better_player/better_player.dart' as better_player;
+import 'package:media_kit/media_kit.dart' as media_kit_pkg;
+import 'package:media_kit_video/media_kit_video.dart' as media_kit_video;
 import 'package:screen_security/screen_security.dart';
 import 'package:solacine_mobile/shared/widgets/app_cached_image.dart';
 import '../../../app/i18n.dart';
@@ -66,7 +67,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   int _episodesSinceLastAd = 0;
   final int _adFrequencyInterval = 5;
 
-  better_player.BetterPlayerController? _videoController;
+  // MediaKit Controller Instance
+  media_kit_pkg.Player? _player;
+  media_kit_video.VideoController? _videoController;
   var _videoReady = false;
   var _videoOpId = 0;
   var _disposed = false;
@@ -170,9 +173,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     _disposed = true;
     _videoOpId++;
     try {
-      _videoController?.pause();
-      _videoController?.dispose();
+      _player?.dispose();
     } catch (_) {}
+    _player = null;
     _videoController = null;
     _pageController.dispose();
     _likeBurst.dispose();
@@ -194,7 +197,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       try {
-        _videoController?.pause();
+        _player?.pause();
       } catch (_) {}
     }
   }
@@ -206,7 +209,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     final isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
     if (!isCurrent) {
       try {
-        _videoController?.pause();
+        _player?.pause();
       } catch (_) {}
     }
   }
@@ -216,11 +219,11 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isActive && !widget.isActive) {
       try {
-        _videoController?.pause();
+        _player?.pause();
       } catch (_) {}
     } else if (!oldWidget.isActive && widget.isActive) {
       try {
-        _videoController?.play();
+        _player?.play();
       } catch (_) {}
     }
   }
@@ -236,8 +239,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     _autoHideControlsTimer?.cancel();
     _autoHideControlsTimer = Timer(inFor, () {
       if (!mounted || _disposed) return;
-      final controller = _videoController;
-      if (controller != null && (controller.isPlaying() ?? false)) return;
+      final p = _player;
+      if (p != null && p.state.playing) return;
       _hideControls();
     });
   }
@@ -271,14 +274,14 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   }
 
   void _onScreenTap() {
-    final controller = _videoController;
-    if (controller != null) {
-      final isPlaying = controller.isPlaying() ?? false;
+    final p = _player;
+    if (p != null) {
+      final isPlaying = p.state.playing;
       if (isPlaying) {
-        controller.pause();
+        p.pause();
         _showControls(scheduleAutoHide: false);
       } else {
-        controller.play();
+        p.play();
         if (!widget.reelsPreview) {
           _scheduleAutoHideControls();
         }
@@ -291,14 +294,14 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
   void _onCenterPlayPressed() {
     if (!mounted) return;
-    final controller = _videoController;
-    if (controller != null) {
-      final isPlaying = controller.isPlaying() ?? false;
+    final p = _player;
+    if (p != null) {
+      final isPlaying = p.state.playing;
       if (isPlaying) {
-        controller.pause();
+        p.pause();
         _showControls(scheduleAutoHide: false);
       } else {
-        controller.play();
+        p.play();
         if (!widget.reelsPreview) {
           _scheduleAutoHideControls();
         }
@@ -414,12 +417,12 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   int get _currentEpisodeNumber => _episodeNumberForPageIndex(_index);
 
   Future<void> _pauseVideoAndPush(String route) async {
-    final controller = _videoController;
+    final p = _player;
     final bool wasPlaying;
-    if (controller != null) {
-      wasPlaying = controller.isPlaying() ?? false;
+    if (p != null) {
+      wasPlaying = p.state.playing;
       if (wasPlaying) {
-        controller.pause();
+        p.pause();
         if (mounted) setState(() {});
       }
     } else {
@@ -428,10 +431,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     if (!mounted) return;
     await context.push(route);
     if (mounted && wasPlaying) {
-      final c = _videoController;
-      if (c != null && !(c.isPlaying() ?? false)) {
+      final currentP = _player;
+      if (currentP != null && !currentP.state.playing) {
         try {
-          c.play();
+          currentP.play();
           if (mounted) setState(() {});
         } catch (_) {}
       }
@@ -440,7 +443,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
   void _safePopOrHome() {
     try {
-      _videoController?.pause();
+      _player?.pause();
     } catch (_) {}
     final router = GoRouter.of(context);
     if (widget.fromReels) {
@@ -460,9 +463,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
     try {
       try {
-        _videoController?.pause();
-        _videoController?.dispose();
+        _player?.pause();
+        _player?.dispose();
       } catch (_) {}
+      _player = null;
       _videoController = null;
 
       final randomData = await ref.read(watchApiProvider).getRandomSeries(currentSlug: widget.slug);
@@ -477,9 +481,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       final targetTitle = randomData.title;
 
       if (!mounted) return;
-
       final targetPath = '/watch/$targetSlug?title=${Uri.encodeComponent(targetTitle)}&from=reels';
-      
       context.push(targetPath);
     } catch (e) {
       _isNavigatingRandom = false;
@@ -491,7 +493,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
   Future<void> _showExitInterstitialAndLeave({required bool isVipUser}) async {
     try {
-      _videoController?.pause();
+      _player?.pause();
     } catch (_) {}
     if (_fullScreenAdOpen) {
       _safePopOrHome();
@@ -521,16 +523,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
     try {
       if (!mounted) return;
-      if (widget.reelsPreview) {
-        exitTimeoutTimer.cancel();
-        _exitBlockedUiTimer?.cancel();
-        _exitInterstitialShowing = false;
-        _exitInterstitialBlockedUI = false;
-        if (mounted) setState(() {});
-        _safePopOrHome();
-        return;
-      }
-      if (isVipUser) {
+      if (widget.reelsPreview || isVipUser) {
         exitTimeoutTimer.cancel();
         _exitBlockedUiTimer?.cancel();
         _exitInterstitialShowing = false;
@@ -550,7 +543,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
       if (canShowAd && cfg != null) {
         try {
-          _videoController?.pause();
+          _player?.pause();
         } catch (_) {}
         try {
           final adsSvc = ref.read(adsServiceProvider);
@@ -619,7 +612,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
         if (cfg != null && adsSvc.adsEnabled(cfg)) {
           try {
-            _videoController?.pause();
+            _player?.pause();
           } catch (_) {}
 
           if (mounted) setState(() => _fullScreenAdOpen = true);
@@ -635,8 +628,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             }
             
             try {
-              if (_videoController != null) {
-                _videoController!.play();
+              if (_player != null) {
+                _player!.play();
                 _scheduleAutoHideControls();
               }
             } catch (_) {}
@@ -675,9 +668,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       _vastRewardCompleter!.complete(completed);
       _vastRewardCompleter = null;
     }
-    if (widget.isActive && _videoReady && _videoController != null && !(_videoController!.isPlaying() ?? false)) {
+    if (widget.isActive && _videoReady && _player != null && !_player!.state.playing) {
       try {
-        _videoController!.play();
+        _player!.play();
       } catch (_) {}
     }
   }
@@ -710,7 +703,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           _activeVastAd = adData;
         });
         try {
-          _videoController?.pause();
+          _player?.pause();
         } catch (_) {}
         final finished = await completer.future.timeout(const Duration(seconds: 25), onTimeout: () => false);
         if (!finished && mounted && _activeVastAd != null) {
@@ -734,7 +727,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       _fullScreenAdOpen = true;
       if (mounted) setState(() {});
       try {
-        _videoController?.pause();
+        _player?.pause();
       } catch (_) {}
 
       bool completed = false;
@@ -778,7 +771,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     _fullScreenAdOpen = true;
     if (mounted) setState(() {});
     try {
-      _videoController?.pause();
+      _player?.pause();
     } catch (_) {}
     final completed = await ref.read(adsServiceProvider).showRewarded(onEarnedReward: () {}, requireEarnedReward: true);
     _fullScreenAdOpen = false;
@@ -1064,9 +1057,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                             Navigator.of(context).pop();
                             WidgetsBinding.instance.addPostFrameCallback((_) async {
                               if (!mounted) return;
-                              final controller = _videoController;
-                              final pos = controller != null ? (controller.videoPlayer?.value.position ?? Duration.zero) : Duration.zero;
-                              final wasPlaying = controller != null ? (controller.isPlaying() ?? true) : true;
+                              final p = _player;
+                              final pos = p != null ? p.state.position : Duration.zero;
+                              final wasPlaying = p != null ? p.state.playing : true;
                               setState(() {
                                 _preferredQualityByEpisode[ep.episodeNumber] = q;
                                 _preferredUrlByEpisode[ep.episodeNumber] = u;
@@ -1148,11 +1141,13 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       _activeVideoUrl = url;
     });
 
-    final oldController = _videoController;
+    // AGGRESSIVE DISPOSE: Hancurkan player lama agar tidak leak di RAM
+    final oldPlayer = _player;
+    _player = null;
     _videoController = null;
-    if (oldController != null) {
+    if (oldPlayer != null) {
       try {
-        oldController.dispose();
+        oldPlayer.dispose();
       } catch (_) {}
     }
 
@@ -1183,36 +1178,23 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       });
 
       try {
-        final betterPlayerConfiguration = better_player.BetterPlayerConfiguration(
-          aspectRatio: 9 / 16,
-          fit: BoxFit.cover,
-          autoPlay: shouldPlay && widget.isActive,
-          looping: false,
-          controlsConfiguration: const better_player.BetterPlayerControlsConfiguration(
-            showControls: false,
-          ),
-        );
+        final player = media_kit_pkg.Player();
+        final videoController = media_kit_video.VideoController(player);
 
-        final dataSource = better_player.BetterPlayerDataSource(
-          better_player.BetterPlayerDataSourceType.network,
-          u,
-          videoFormat: better_player.BetterPlayerVideoFormat.hls,
-        );
-
-        final controller = better_player.BetterPlayerController(betterPlayerConfiguration);
-        await controller.setupDataSource(dataSource);
-        await controller.setSpeed(_playbackSpeed);
+        await player.setRate(_playbackSpeed);
+        await player.open(media_kit_pkg.Media(u), play: shouldPlay && widget.isActive);
 
         if (resumePosition != null && resumePosition > Duration.zero) {
-          await controller.seekTo(resumePosition);
+          await player.seek(resumePosition);
         }
 
         if (!mounted || _disposed || opId != _videoOpId) {
-          controller.dispose();
+          player.dispose();
           return;
         }
 
-        _videoController = controller;
+        _player = player;
+        _videoController = videoController;
 
         setState(() {
           _videoReady = true;
@@ -1258,10 +1240,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   }
 
   Future<void> _setSpeed(double next) async {
-    final controller = _videoController;
-    if (controller == null) return;
+    final p = _player;
+    if (p == null) return;
     try {
-      await controller.setSpeed(next);
+      await p.setRate(next);
       if (!mounted) return;
       setState(() => _playbackSpeed = next);
     } catch (_) {}
@@ -1779,7 +1761,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     if (data == null) return;
     if (widget.reelsPreview) return;
 
-    final wasPlaying = _videoController?.isPlaying() ?? false;
+    final wasPlaying = _player?.state.playing ?? false;
     _inModalSheet = true;
     var selectedNew = false;
 
@@ -1821,10 +1803,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
     _inModalSheet = false;
     if (mounted && !selectedNew && wasPlaying) {
-      final controller = _videoController;
-      if (controller != null && !(controller.isPlaying() ?? false)) {
+      final p = _player;
+      if (p != null && !p.state.playing) {
         try {
-          controller.play();
+          p.play();
           if (!widget.reelsPreview) {
             _scheduleAutoHideControls();
           }
@@ -1900,7 +1882,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
                   if (totalEpisodes > 0 && i >= totalEpisodes) {
                     try {
-                      _videoController?.pause();
+                      _player?.pause();
                     } catch (_) {}
                     _navigateToRandomSeries();
                     return;
@@ -1932,8 +1914,11 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                   final epNum = _episodeNumberForPageIndex(i);
                   final ep = _episodesByNumber[epNum];
                   final isActive = i == _index;
-                  final playerController = isActive ? _videoController : null;
-                  final ready = isActive && _videoReady && playerController != null;
+                  
+                  // Kirim MediaKit controller khusus untuk episode yang aktif
+                  final mediaKitVideoController = isActive ? _videoController : null;
+                  
+                  final ready = isActive && _videoReady && mediaKitVideoController != null;
                   final isUnlocked = ep?.isUnlocked ?? false;
                   final hasVideo = isUnlocked && ((ep?.videoUrl.trim().isNotEmpty ?? false));
                   final unlock = data.unlock;
@@ -1960,7 +1945,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                     epNum: epNum,
                     ep: ep,
                     isActive: isActive,
-                    betterPlayerController: playerController,
+                    betterPlayerController: mediaKitVideoController, // Diteruskan ke widget item
                     ready: ready,
                     isUnlocked: isUnlocked,
                     hasVideo: hasVideo,
@@ -2019,7 +2004,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                       final slug = series.slug.trim();
                       if (slug.isEmpty) return;
                       try {
-                        _videoController?.pause();
+                        _player?.pause();
                       } catch (_) {}
                       final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&from=reels';
                       context.go('/reels');
