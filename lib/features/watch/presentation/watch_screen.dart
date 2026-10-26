@@ -1267,14 +1267,13 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             return;
           }
           
-          // --- PERBAIKAN UTAMA: Paksa Play & Pastikan Render Surface Ter-trigger ---
           await player.play();
 
-          // Berikan jeda mikro-task singkat untuk memaksa surface me-render frame pertama
+          // --- PERBAIKAN NULL SAFETY DI SINI ---
           Future.delayed(const Duration(milliseconds: 120), () {
-            if (mounted && _video == player && !player.state.playing) {
+            if (mounted && _video == player && !(player?.state.playing ?? true)) {
               try {
-                player.play();
+                player?.play();
               } catch (_) {}
             }
           });
@@ -1296,8 +1295,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           _videoError = null;
         });
 
-        // Pastikan sekali lagi state playing terpanggil saat ready
-        if (shouldPlay && widget.isActive && !player.state.playing) {
+        if (shouldPlay && widget.isActive && !(player.state.playing)) {
           try {
             await player.play();
           } catch (_) {}
