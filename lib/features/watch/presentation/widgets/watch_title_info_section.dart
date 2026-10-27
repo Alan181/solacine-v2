@@ -31,8 +31,6 @@ class WatchTitleInfoSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppI18n.of(context);
     if (reelsPreview) {
-      // Reels Mode: Title in white with arrow only, 2-line grey synopsis, wide grey "Watch Now" button.
-      // Controls in Reels NEVER disappear!
       return Positioned(
         right: 14,
         bottom: bottomPad + 18,
@@ -42,7 +40,6 @@ class WatchTitleInfoSection extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Title in White + Arrow only
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: onOpenSeriesInfo,
@@ -73,8 +70,6 @@ class WatchTitleInfoSection extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // Synopsis: 2 lines max, in grey
               if (synopsis.trim().isNotEmpty) ...[
                 const SizedBox(height: 5),
                 Text(
@@ -90,11 +85,9 @@ class WatchTitleInfoSection extends StatelessWidget {
                   ),
                 ),
               ],
-
-              // Wide Grey "Watch Now" Button with Play Icon
               const SizedBox(height: 10),
               GestureDetector(
-                behavior: HitTestBehavior.opaque, // 👈 KUNCI UTAMA: Agar sentuhan langsung diterima tombol ini
+                behavior: HitTestBehavior.opaque,
                 onTap: onWatchNow,
                 child: Container(
                   width: 250,
@@ -131,7 +124,6 @@ class WatchTitleInfoSection extends StatelessWidget {
       );
     }
 
-    // Full Series Watch Mode
     return PositionedDirectional(
       start: 14,
       end: 72,
