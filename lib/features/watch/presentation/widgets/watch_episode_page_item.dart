@@ -222,19 +222,23 @@ class WatchEpisodePageItem extends StatelessWidget {
               controlsVisible: controlsVisible,
               isUnlocked: isUnlocked,
             ),
-            WatchTitleInfoSection(
-              bottomPad: bottomPad,
-              genresLine: genresLine,
-              seriesTitle: series.title,
-              contentRating: series.contentRating,
-              synopsis: series.synopsis,
-              reelsPreview: reelsPreview,
-              ageRatingAsset: ageRatingAsset,
-              onOpenSeriesInfo: onOpenSeriesInfo,
-              onWatchNow: onWatchNow,
-              controlsVisible: controlsVisible,
-            ),
           ],
+          
+          // ✨ DIPERBAIKI: WatchTitleInfoSection dikeluarkan dari kondisi isUnlocked
+          // agar tombol "Tonton Sekarang" pada reels selalu muncul & bisa diklik meskipun status episode terkunci
+          WatchTitleInfoSection(
+            bottomPad: bottomPad,
+            genresLine: genresLine,
+            seriesTitle: series.title,
+            contentRating: series.contentRating,
+            synopsis: synopsis,
+            reelsPreview: reelsPreview,
+            ageRatingAsset: ageRatingAsset,
+            onOpenSeriesInfo: onOpenSeriesInfo,
+            onWatchNow: onWatchNow,
+            controlsVisible: controlsVisible,
+          ),
+
           WatchSwipeGuideOverlay(
             showSwipeGuide: isActive && isUnlocked && hasVideo && showSwipeGuide,
             bottomPad: bottomPad,
