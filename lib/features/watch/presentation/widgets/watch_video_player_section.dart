@@ -1,7 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:media_kit_video/media_kit_video.dart' as media_kit_video;
+import 'package:video_player/video_player.dart';
 import 'package:solacine_mobile/app/i18n.dart';
 import 'package:solacine_mobile/shared/widgets/app_cached_image.dart';
+import 'watch_seek_bar.dart';
 
 class WatchVideoPlayerSection extends StatelessWidget {
   const WatchVideoPlayerSection({
@@ -11,7 +13,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
     required this.hasVideo,
     required this.videoLoading,
     required this.videoError,
-    required this.mediaKitVideoController,
+    required this.player,
     required this.bg,
     required this.ep,
     required this.series,
@@ -34,7 +36,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
   final bool hasVideo;
   final bool videoLoading;
   final String? videoError;
-  final media_kit_video.VideoController? mediaKitVideoController;
+  final VideoPlayerController? player;
   final String bg;
   final dynamic ep;
   final dynamic series;
@@ -54,31 +56,30 @@ class WatchVideoPlayerSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppI18n.of(context);
-    final controller = mediaKitVideoController;
-    final player = controller?.player;
+    final p = player;
 
     return Stack(
       fit: StackFit.expand,
       children: [
-        // 1. Alas hitam mutlak agar transisi hardware player menyatu sempurna
         const ColoredBox(color: Colors.black),
-
-        // 2. ✨ LANGSUNG PUTAR FILM: Video langsung dirender detik itu juga begitu controller ada ✨
-        if (isUnlocked && hasVideo && controller != null)
-          Positioned.fill(
-            child: media_kit_video.Video(
-              controller: controller,
+        if (!ready || p == null) _buildBackground(bg),
+        if (ready && p != null)
+          RepaintBoundary(
+            child: FittedBox(
               fit: BoxFit.cover,
-              controls: media_kit_video.NoVideoControls,
+              child: SizedBox(
+                width: p.value.size.width > 0 ? p.value.size.width : 100,
+                height: p.value.size.height > 0 ? p.value.size.height : 100,
+                child: VideoPlayer(p),
+              ),
             ),
           ),
-
-        // 3. Cinema bottom gradient shadow
+        // Cinema bottom gradient shadow to guarantee controls, title and buttons readability
         Positioned(
           left: 0,
           right: 0,
           bottom: 0,
-          height: reelsPreview ? 360 : 300,
+          height: reelsPreview ? 360 : 270,
           child: IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(
@@ -98,8 +99,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
             ),
           ),
         ),
-
-        // 4. Subtle iOS top gradient for status bar
+        // Subtle iOS top gradient for status bar
         Positioned(
           left: 0,
           right: 0,
@@ -122,262 +122,322 @@ class WatchVideoPlayerSection extends StatelessWidget {
             ),
           ),
         ),
+        // Center overlay: iOS loading spinner when buffering/loading, OR play button when paused
+        if (ready && isUnlocked && hasVideo && videoError == null && p != null)
+          AnimatedBuilder(
+            animation: p,
+            builder: (context, _) {
+              final v = p.value;
+              final isBuffering = v.isBuffering || videoLoading || !v.isInitialized;
 
-        // 5. Center Play/Pause Indicator
-        if (ready && isUnlocked && player != null)
-          Center(
-            child: StreamBuilder<bool>(
-              stream: player.stream.playing,
-              builder: (context, snapshot) {
-                final isPlaying = snapshot.data ?? true;
-                if (isPlaying && controlsVisible) return const SizedBox.shrink();
-                return GestureDetector(
-                  onTap: onTogglePlayback,
+              if (isBuffering) {
+                return Center(
                   child: Container(
-                    width: 64,
-                    height: 64,
+                    width: 68,
+                    height: 68,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
+                      color: Colors.black.withValues(alpha: 0.50),
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.20),
+                        width: 1.5,
+                      ),
                     ),
-                    child: Icon(
-                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                      color: Colors.white,
-                      size: 36,
+                    child: const Center(
+                      child: CupertinoActivityIndicator(
+                        radius: 16,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 );
-              },
-            ),
-          ),
+              }
 
-        // 6. Bottom Controls, Progress Bar & Duration
-        if (ready && isUnlocked && player != null) ..._buildInteractiveBottomBar(context, t, player),
+              final isPaused = !v.isPlaying;
+              if (!isPaused) return const SizedBox.shrink();
+
+              return Center(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    if (onTogglePlayback != null) {
+                      onTogglePlayback!();
+                    } else {
+                      p.play();
+                    }
+                  },
+                  child: Container(
+                    width: 74,
+                    height: 74,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.8),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.50), blurRadius: 24, spreadRadius: 2),
+                      ],
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 48,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        if (ready && isUnlocked && p != null) ..._buildBottomControls(context, t, p),
       ],
     );
   }
 
-  List<Widget> _buildInteractiveBottomBar(BuildContext context, AppI18n t, dynamic player) {
+  Widget _buildBackground(String bg) {
+    if (bg.isEmpty) {
+      return Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xff0b0b0b),
+              Colors.black,
+            ],
+          ),
+        ),
+      );
+    }
+    return AppCachedImage(
+      imageUrl: bg,
+      fit: BoxFit.cover,
+      errorWidget: (_) => Container(color: const Color(0xff0b0b0b)),
+    );
+  }
+
+  List<Widget> _buildBottomControls(BuildContext context, AppI18n t, VideoPlayerController p) {
     if (reelsPreview) {
-      return [];
+      // In Reels: Clean, minimal bottom scrub bar in pure GREY tones! Always visible!
+      return [
+        PositionedDirectional(
+          start: 0,
+          end: 0,
+          bottom: bottomPad,
+          child: WatchSeekBar(
+            controller: p,
+            activeColor: const Color(0xFFB0B0B0),
+            inactiveColor: const Color(0xFF333333).withValues(alpha: 0.60),
+          ),
+        ),
+      ];
     }
 
+    // Main Series Watch Mode
     return [
+      // Video Time (text only, small font) directly above Seek Bar
       PositionedDirectional(
         start: 14,
         end: 14,
-        bottom: bottomPad + 6,
+        bottom: bottomPad + 38,
         child: IgnorePointer(
           ignoring: !controlsVisible,
           child: AnimatedOpacity(
             opacity: controlsVisible ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 180),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                StreamBuilder<Duration>(
-                  stream: player.stream.position,
-                  builder: (context, posSnapshot) {
-                    final position = posSnapshot.data ?? player.state.position;
-                    final duration = player.state.duration;
-                    
-                    final maxSec = duration.inSeconds.toDouble();
-                    final currentSec = position.inSeconds.toDouble().clamp(0.0, maxSec > 0 ? maxSec : 1.0);
-
-                    return Column(
-                      children: [
-                        if (duration > Duration.zero)
-                          SizedBox(
-                            height: 16,
-                            child: SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                trackHeight: 2.5,
-                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
-                                activeTrackColor: const Color(0xffef233c),
-                                inactiveTrackColor: Colors.white.withValues(alpha: 0.25),
-                                thumbColor: Colors.white,
-                              ),
-                              child: Slider(
-                                value: currentSec,
-                                min: 0.0,
-                                max: maxSec > 0 ? maxSec : 1.0,
-                                onChanged: (val) {
-                                  player.seek(Duration(seconds: val.toInt()));
-                                },
-                              ),
+                if (ready && isUnlocked)
+                  AnimatedBuilder(
+                    animation: p,
+                    builder: (context, _) {
+                      final v = p.value;
+                      return Text(
+                        '${fmtDuration(v.position)} / ${fmtDuration(v.duration)}',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.88),
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w600,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.85),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
                             ),
-                          ),
-                        const SizedBox(height: 2),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                fmtDuration(position),
-                                style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 10, fontWeight: FontWeight.w500),
-                              ),
-                              Text(
-                                fmtDuration(duration),
-                                style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 10, fontWeight: FontWeight.w500),
-                              ),
-                            ],
-                          ),
+                          ],
                         ),
-                      ],
-                    );
-                  },
+                      );
+                    },
+                  ),
+                const SizedBox(height: 3),
+                WatchSeekBar(
+                  controller: p,
+                  activeColor: const Color(0xFFE50914),
+                  inactiveColor: Colors.white.withValues(alpha: 0.22),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    if (ep != null)
-                      InkWell(
-                        onTap: () => onOpenQualitySheet(ep),
+              ],
+            ),
+          ),
+        ),
+      ),
+      // Bottom Status & Action Bar
+      PositionedDirectional(
+        start: 14,
+        end: 14,
+        bottom: bottomPad + 8,
+        child: IgnorePointer(
+          ignoring: !controlsVisible,
+          child: AnimatedOpacity(
+            opacity: controlsVisible ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 180),
+            child: Row(
+              children: [
+                if (ep != null)
+                  InkWell(
+                    onTap: () => onOpenQualitySheet(ep),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      height: 24,
+                      padding: const EdgeInsets.symmetric(horizontal: 7),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.28),
                         borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          height: 24,
-                          padding: const EdgeInsets.symmetric(horizontal: 7),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.28),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.24), width: 0.8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.tune_rounded, size: 11, color: Colors.white.withValues(alpha: 0.90)),
-                              const SizedBox(width: 3.5),
-                              Text(
-                                qualityLabel(ep, t),
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.95),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 10,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    else
-                      const SizedBox.shrink(),
-                    if (series.isDubbed) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        height: 22,
-                        padding: const EdgeInsets.symmetric(horizontal: 7),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            colors: [
-                              Color(0xFFFF5A5F),
-                              Color(0xFFD946EF),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(11),
-                        ),
-                        child: Center(
-                          child: Text(
-                            t.t('dubbed'),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 9.5,
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.24), width: 0.8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.tune_rounded, size: 11, color: Colors.white.withValues(alpha: 0.90)),
+                          const SizedBox(width: 3.5),
+                          Text(
+                            qualityLabel(ep, t),
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.95),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 10,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                    const Spacer(),
-                    if (isVipUser)
-                      Container(
-                        height: 22,
-                        padding: const EdgeInsets.symmetric(horizontal: 7),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFD700).withValues(alpha: 0.24),
-                          borderRadius: BorderRadius.circular(11),
-                          border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.50), width: 0.9),
+                    ),
+                  )
+                else
+                  const SizedBox.shrink(),
+                if (series.isDubbed) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    height: 22,
+                    padding: const EdgeInsets.symmetric(horizontal: 7),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          Color(0xFFFF5A5F),
+                          Color(0xFFD946EF),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Center(
+                      child: Text(
+                        t.t('dubbed'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 9.5,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset(
-                              'assets/images/player_vip.png',
-                              width: 13,
-                              height: 13,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) => const Icon(
-                                Icons.workspace_premium_rounded,
-                                size: 12,
-                                color: Color(0xFFFFD700),
-                              ),
-                            ),
-                            const SizedBox(width: 3),
-                            const Text(
-                              'VIP',
-                              style: TextStyle(
-                                color: Color(0xFFFFDF7A),
-                                fontWeight: FontWeight.w800,
-                                fontSize: 10,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                if (isVipUser)
+                  Container(
+                    height: 22,
+                    padding: const EdgeInsets.symmetric(horizontal: 7),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFD700).withValues(alpha: 0.24),
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.50), width: 0.9),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/images/player_vip.png',
+                          width: 13,
+                          height: 13,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => const Icon(
+                            Icons.workspace_premium_rounded,
+                            size: 12,
+                            color: Color(0xFFFFD700),
+                          ),
                         ),
-                      )
-                    else
-                      InkWell(
-                        onTap: onPauseAndPushMembership,
+                        const SizedBox(width: 3),
+                        const Text(
+                          'VIP',
+                          style: TextStyle(
+                            color: Color(0xFFFFDF7A),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 10,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  InkWell(
+                    onTap: onPauseAndPushMembership,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      height: 24,
+                      padding: const EdgeInsets.symmetric(horizontal: 7),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFD700).withValues(alpha: 0.22),
                         borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          height: 24,
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFD700).withValues(alpha: 0.22),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: const Color(0xFFFFD700).withValues(alpha: 0.45),
-                              width: 0.9,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Image.asset(
-                                'assets/images/player_vip.png',
-                                width: 14,
-                                height: 14,
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) => const Icon(
-                                  Icons.workspace_premium_rounded,
-                                  size: 13,
-                                  color: Color(0xFFFFD700),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                t.t('join_membership'),
-                                style: const TextStyle(
-                                  color: Color(0xFFFFDF7A),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 9.5,
-                                  letterSpacing: 0.1,
-                                ),
-                              ),
-                            ],
-                          ),
+                        border: Border.all(
+                          color: const Color(0xFFFFD700).withValues(alpha: 0.45),
+                          width: 0.9,
                         ),
                       ),
-                  ],
-                ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset(
+                            'assets/images/player_vip.png',
+                            width: 14,
+                            height: 14,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => const Icon(
+                              Icons.workspace_premium_rounded,
+                              size: 13,
+                              color: Color(0xFFFFD700),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            t.t('join_membership'),
+                            style: const TextStyle(
+                              color: Color(0xFFFFDF7A),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 9.5,
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
