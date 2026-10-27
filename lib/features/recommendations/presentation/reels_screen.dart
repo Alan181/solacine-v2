@@ -121,12 +121,12 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> with WidgetsBindingOb
           );
         }
 
-        if (_index >= items.length * 10) {
+        if (_index >= items.length) {
           _index = 0;
         }
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _prefetchAround(items, _index % items.length);
+          _prefetchAround(items, _index);
         });
 
         final activeBranch = ActiveShellBranchScope.maybeOf(context);
@@ -154,10 +154,13 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> with WidgetsBindingOb
             }
 
             final slug = it.watchSlug.trim().isNotEmpty ? it.watchSlug : it.slug;
-            final ep = it.watchEpisodeNumber > 0 ? it.watchEpisodeNumber : 1;
+            
+            // Jika watchEpisodeNumber tidak valid, biarkan null agar backend membaca riwayat terakhir dari database
+            final ep = it.watchEpisodeNumber > 0 ? it.watchEpisodeNumber : null;
+            
             final poster = (it.posterUrl.trim().isNotEmpty ? it.posterUrl : it.featuredImageUrl).trim();
             return WatchScreen(
-              key: ValueKey('reels_${slug}_${ep}_$i'),
+              key: ValueKey('reels_${slug}_${ep ?? 0}_$i'),
               slug: slug,
               title: it.title,
               episodeNumber: ep,
@@ -277,7 +280,9 @@ class _ReelsPlaceholder extends StatelessWidget {
             ),
           ),
         ),
-        // 🚫 AppLoadingIndicator dihapus agar tidak ada ikon mutar loading saat swipe reels
+        const Center(
+          child: AppLoadingIndicator(radius: 14),
+        ),
       ],
     );
   }
