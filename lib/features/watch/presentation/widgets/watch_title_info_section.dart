@@ -30,6 +30,7 @@ class WatchTitleInfoSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppI18n.of(context);
+    
     if (reelsPreview) {
       return Positioned(
         right: 14,
@@ -227,6 +228,43 @@ class WatchTitleInfoSection extends StatelessWidget {
                   ),
                 ),
               ],
+              const SizedBox(height: 10),
+              // ✨ Tombol "Tonton Sekarang" juga ditambahkan di mode utama layar tonton Reels
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  debugPrint('[WatchTitleInfoSection] Tombol Tonton Sekarang diklik (Main View)');
+                  onWatchNow();
+                },
+                child: Container(
+                  width: 250,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A2A2E).withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        t.t('watch_now'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
