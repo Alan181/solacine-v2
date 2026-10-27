@@ -58,7 +58,16 @@ class ReelsPreloadManager {
       final ep = data.episodes.isNotEmpty ? data.episodes.first : null;
       final videoUrl = ep?.videoUrl.trim() ?? '';
       if (videoUrl.isNotEmpty && !_controllerCache.containsKey(videoUrl)) {
-        final c = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
+        
+        // --- PENAMBAHAN FORMAT HINT UNTUK KONSISTENSI PEMUTARAN ---
+        final isHls = videoUrl.contains('.m3u8') || videoUrl.contains('/hls/');
+        final isMp4 = videoUrl.toLowerCase().endsWith('.mp4') || videoUrl.contains('.mp4?');
+
+        final c = VideoPlayerController.networkUrl(
+          Uri.parse(videoUrl),
+          formatHint: isHls ? VideoFormat.hls : (isMp4 ? VideoFormat.other : null),
+        );
+
         await c.initialize();
         await c.setLooping(true);
 
