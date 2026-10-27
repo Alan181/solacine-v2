@@ -1185,6 +1185,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         _videoError = null;
       });
 
+      // --- PERBAIKAN FORMAT PEMUTAR VIDEO UNTUK FILE MP4 & HLS ---
       VideoPlayerController? c;
       if (widget.reelsPreview) {
         c = ReelsPreloadManager.takePrewarmedController(u);
@@ -1312,7 +1313,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         _triggerPreloadNextEpisodes(episodeNumber);
         return;
       } catch (e) {
-        lastError = e; // Menangkap error asli di sini
+        lastError = e;
         try {
           await c.dispose();
         } catch (_) {}
@@ -1322,12 +1323,26 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     }
 
     if (!mounted) return;
-    // --- KITA PAKSA TAMPILKAN ERROR ASLI DI LAYAR DI SINI ---
+    
+    final realErrorText = (lastError ?? 'Unknown playback error').toString();
     setState(() {
       _videoReady = false;
       _videoLoading = false;
-      _videoError = 'ERROR ASLI: ${(lastError ?? 'Unknown playback error').toString()}';
+      _videoError = realErrorText;
     });
+
+    // MEMUNCULKAN ERROR ASLI DI LAYAR BAWAH (SNACKBAR) SECARA TRANSPARAN
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'ERROR PEMUTARAN: $realErrorText',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.red.shade900,
+        duration: const Duration(seconds: 8),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _triggerPreloadNextEpisodes(int currentEpNum) {
@@ -2049,95 +2064,138 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                     Future.microtask(() => _unlockEpisode(ep: ep, method: 'coins'));
                   }
 
-                  return WatchEpisodePageItem(
-                    epNum: epNum,
-                    ep: ep,
-                    isActive: isActive,
-                    player: player,
-                    ready: ready,
-                    isUnlocked: isUnlocked,
-                    hasVideo: hasVideo,
-                    series: series,
-                    cfg: cfg,
-                    coinSystemEnabled: coinSystemEnabled,
-                    allowVipUnlock: allowVipUnlock,
-                    showVipUpsell: showVipUpsell,
-                    allowAdsUnlock: allowAdsUnlock,
-                    canUnlockByAd: canUnlockByAd,
-                    unlockCost: unlockCost,
-                    coinsEnabled: coinsEnabled,
-                    canUnlockByCoins: canUnlockByCoins,
-                    topPad: topPad,
-                    bottomPad: bottomPad,
-                    genresLine: genresLine,
-                    loadingEpisode: loadingEpisode,
-                    isVipUser: isVipUser,
-                    coinsBalance: coinsBalance,
-                    totalEpisodes: totalEpisodes,
-                    controlsVisible: _controlsVisible,
-                    videoLoading: _videoLoading,
-                    videoError: _videoError,
-                    activeVideoUrl: _activeVideoUrl,
-                    showLikeBurst: _showLikeBurst,
-                    likeBurstPos: _likeBurstPos,
-                    likeBurstAnimation: _likeBurst,
-                    likeBurstScale: _likeBurstScale,
-                    likeBurstOpacity: _likeBurstOpacity,
-                    rewardShakeAnimation: _rewardShake,
-                    rewardDismissed: _rewardDismissed,
-                    showSwipeGuide: _showSwipeGuide,
-                    guideShakeAnimation: _guideShake,
-                    isLiked: _isLiked,
-                    likesCount: _likesCount,
-                    autoUnlockEnabled: _autoUnlockEnabled,
-                    unlocking: _unlocking,
-                    adUnlocksToday: unlock.adUnlocksToday,
-                    dailyAdLimit: unlock.dailyAdLimit,
-                    qualityLabel: (dynamic e, dynamic tr) => _qualityLabel(e as WatchEpisodeDto, tr as AppI18n),
-                    fmtDuration: _fmt,
-                    ageRatingAsset: _ageRatingAsset,
-                    coinUnit: t.t('coin_unit'),
-                    bg: bg,
-                    reelsPreview: widget.reelsPreview,
-                    onTap: _onScreenTap,
-                    onDoubleTapDown: (d) => _lastDoubleTapLocalPos = d.localPosition,
-                    onDoubleTap: () => _onDoubleTapLike(_lastDoubleTapLocalPos),
-                    onToggleControls: _toggleControls,
-                    onSafePopOrHome: _safePopOrHome,
-                    onToggleLike: _toggleLike,
-                    onOpenEpisodesSheet: _openEpisodesSheet,
-                    onOpenMoreSheet: () => _openMoreSheet(ep),
-                    onOpenSeriesInfo: _openSeriesInfoSheet,
-                    onWatchNow: () {
-                      final slug = series.slug.trim();
-                      if (slug.isEmpty) return;
-                      try {
-                        _video?.pause();
-                      } catch (_) {}
-                      final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&from=reels';
-                      context.go('/reels');
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (context.mounted) {
-                          context.push(target);
-                        }
-                      });
-                    },
-                    onTapReward: () => _pauseVideoAndPush('/rewards'),
-                    onDismissReward: () => setState(() => _rewardDismissed = true),
-                    onDismissSwipeGuide: _dismissSwipeGuide,
-                    onRetryVideo: () => _startEpisodeNumber(epNum),
-                    onOpenQualitySheet: (dynamic e) => _openQualitySheet(e as WatchEpisodeDto),
-                    onPauseAndPushMembership: () => _pauseVideoAndPush('/membership'),
-                    onRecharge: () => _pauseVideoAndPush('/recharge'),
-                    onUnlockWithCoins: ep == null ? () {} : () => _unlockEpisode(ep: ep, method: 'coins'),
-                    onUnlockWithAd: ep == null ? () {} : () => _unlockEpisodeByWatchingAd(ep: ep, isVipUser: isVipUser),
-                    onSetAutoUnlock: _setAutoUnlockEnabled,
-                    paywallAnimBuilder: ({required int episodeNumber, required Widget child}) => _buildPaywallPop(
-                      episodeNumber: episodeNumber,
-                      child: child,
-                    ),
-                    episodeNumber: epNum,
-                    onTogglePlayback: _onCenterPlayPressed,
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      WatchEpisodePageItem(
+                        epNum: epNum,
+                        ep: ep,
+                        isActive: isActive,
+                        player: player,
+                        ready: ready,
+                        isUnlocked: isUnlocked,
+                        hasVideo: hasVideo,
+                        series: series,
+                        cfg: cfg,
+                        coinSystemEnabled: coinSystemEnabled,
+                        allowVipUnlock: allowVipUnlock,
+                        showVipUpsell: showVipUpsell,
+                        allowAdsUnlock: allowAdsUnlock,
+                        canUnlockByAd: canUnlockByAd,
+                        unlockCost: unlockCost,
+                        coinsEnabled: coinsEnabled,
+                        canUnlockByCoins: canUnlockByCoins,
+                        topPad: topPad,
+                        bottomPad: bottomPad,
+                        genresLine: genresLine,
+                        loadingEpisode: loadingEpisode,
+                        isVipUser: isVipUser,
+                        coinsBalance: coinsBalance,
+                        totalEpisodes: totalEpisodes,
+                        controlsVisible: _controlsVisible,
+                        videoLoading: _videoLoading,
+                        videoError: _videoError,
+                        activeVideoUrl: _activeVideoUrl,
+                        showLikeBurst: _showLikeBurst,
+                        likeBurstPos: _likeBurstPos,
+                        likeBurstAnimation: _likeBurst,
+                        likeBurstScale: _likeBurstScale,
+                        likeBurstOpacity: _likeBurstOpacity,
+                        rewardShakeAnimation: _rewardShake,
+                        rewardDismissed: _rewardDismissed,
+                        showSwipeGuide: _showSwipeGuide,
+                        guideShakeAnimation: _guideShake,
+                        isLiked: _isLiked,
+                        likesCount: _likesCount,
+                        autoUnlockEnabled: _autoUnlockEnabled,
+                        unlocking: _unlocking,
+                        adUnlocksToday: unlock.adUnlocksToday,
+                        dailyAdLimit: unlock.dailyAdLimit,
+                        qualityLabel: (dynamic e, dynamic tr) => _qualityLabel(e as WatchEpisodeDto, tr as AppI18n),
+                        fmtDuration: _fmt,
+                        ageRatingAsset: _ageRatingAsset,
+                        coinUnit: t.t('coin_unit'),
+                        bg: bg,
+                        reelsPreview: widget.reelsPreview,
+                        onTap: _onScreenTap,
+                        onDoubleTapDown: (d) => _lastDoubleTapLocalPos = d.localPosition,
+                        onDoubleTap: () => _onDoubleTapLike(_lastDoubleTapLocalPos),
+                        onToggleControls: _toggleControls,
+                        onSafePopOrHome: _safePopOrHome,
+                        onToggleLike: _toggleLike,
+                        onOpenEpisodesSheet: _openEpisodesSheet,
+                        onOpenMoreSheet: () => _openMoreSheet(ep),
+                        onOpenSeriesInfo: _openSeriesInfoSheet,
+                        onWatchNow: () {
+                          final slug = series.slug.trim();
+                          if (slug.isEmpty) return;
+                          try {
+                            _video?.pause();
+                          } catch (_) {}
+                          final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&from=reels';
+                          context.go('/reels');
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (context.mounted) {
+                              context.push(target);
+                            }
+                          });
+                        },
+                        onTapReward: () => _pauseVideoAndPush('/rewards'),
+                        onDismissReward: () => setState(() => _rewardDismissed = true),
+                        onDismissSwipeGuide: _dismissSwipeGuide,
+                        onRetryVideo: () => _startEpisodeNumber(epNum),
+                        onOpenQualitySheet: (dynamic e) => _openQualitySheet(e as WatchEpisodeDto),
+                        onPauseAndPushMembership: () => _pauseVideoAndPush('/membership'),
+                        onRecharge: () => _pauseVideoAndPush('/recharge'),
+                        onUnlockWithCoins: ep == null ? () {} : () => _unlockEpisode(ep: ep, method: 'coins'),
+                        onUnlockWithAd: ep == null ? () {} : () => _unlockEpisodeByWatchingAd(ep: ep, isVipUser: isVipUser),
+                        onSetAutoUnlock: _setAutoUnlockEnabled,
+                        paywallAnimBuilder: ({required int episodeNumber, required Widget child}) => _buildPaywallPop(
+                          episodeNumber: episodeNumber,
+                          child: child,
+                        ),
+                        episodeNumber: epNum,
+                        onTogglePlayback: _onCenterPlayPressed,
+                      ),
+                      // --- OVERLAY PESAN ERROR TEKS MERAH DI LAYAR JIKA PEMUTARAN GAGAL ---
+                      if (isActive && _videoError != null && _videoError!.trim().isNotEmpty)
+                        Positioned.fill(
+                          child: Container(
+                            color: Colors.black.withValues(alpha: 0.85),
+                            padding: const EdgeInsets.all(24),
+                            alignment: Alignment.center,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  'GAGAL MEMUTAR VIDEO',
+                                  style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 16),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _videoError!,
+                                  style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.4),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 20),
+                                ElevatedButton.icon(
+                                  onPressed: () => _startEpisodeNumber(epNum),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xffef233c),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  icon: const Icon(Icons.refresh_rounded),
+                                  label: Text(t.t('retry')),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   );
                 },
                 itemCount: pageViewItemCount,
