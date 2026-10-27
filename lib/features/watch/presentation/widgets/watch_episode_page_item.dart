@@ -231,7 +231,7 @@ class WatchEpisodePageItem extends StatelessWidget {
             genresLine: genresLine,
             seriesTitle: series.title,
             contentRating: series.contentRating,
-            synopsis: synopsis,
+            synopsis: series.synopsis,
             reelsPreview: reelsPreview,
             ageRatingAsset: ageRatingAsset,
             onOpenSeriesInfo: onOpenSeriesInfo,
