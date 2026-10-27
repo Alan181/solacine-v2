@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:media_kit_video/media_kit_video.dart' as media_kit_video;
+import 'package:video_player/video_player.dart';
 import 'watch_video_player_section.dart';
 import 'watch_like_burst_overlay.dart';
+import 'watch_video_status_overlays.dart';
 import 'watch_top_controls_bar.dart';
 import 'watch_reward_button.dart';
 import 'watch_action_buttons_row.dart';
@@ -16,7 +17,7 @@ class WatchEpisodePageItem extends StatelessWidget {
     required this.epNum,
     required this.ep,
     required this.isActive,
-    required this.mediaKitVideoController,
+    required this.player,
     required this.ready,
     required this.isUnlocked,
     required this.hasVideo,
@@ -90,7 +91,7 @@ class WatchEpisodePageItem extends StatelessWidget {
   final int epNum;
   final dynamic ep;
   final bool isActive;
-  final media_kit_video.VideoController? mediaKitVideoController;
+  final VideoPlayerController? player;
   final bool ready;
   final bool isUnlocked;
   final bool hasVideo;
@@ -177,7 +178,7 @@ class WatchEpisodePageItem extends StatelessWidget {
             hasVideo: hasVideo,
             videoLoading: videoLoading,
             videoError: videoError,
-            mediaKitVideoController: mediaKitVideoController,
+            player: player,
             bg: bg,
             ep: ep,
             series: series,
@@ -202,6 +203,16 @@ class WatchEpisodePageItem extends StatelessWidget {
             likeBurstScale: likeBurstScale,
             likeBurstOpacity: likeBurstOpacity,
           ),
+          WatchVideoStatusOverlays(
+            isUnlocked: isUnlocked,
+            hasVideo: hasVideo,
+            loadingEpisode: loadingEpisode,
+            isActive: isActive,
+            videoLoading: videoLoading,
+            videoError: videoError,
+            onRetryVideo: onRetryVideo,
+            activeVideoUrl: activeVideoUrl,
+          ),
           if (isUnlocked) ...[
             WatchRewardButton(
               topPad: topPad,
@@ -222,23 +233,19 @@ class WatchEpisodePageItem extends StatelessWidget {
               controlsVisible: controlsVisible,
               isUnlocked: isUnlocked,
             ),
+            WatchTitleInfoSection(
+              bottomPad: bottomPad,
+              genresLine: genresLine,
+              seriesTitle: series.title,
+              contentRating: series.contentRating,
+              synopsis: series.synopsis,
+              reelsPreview: reelsPreview,
+              ageRatingAsset: ageRatingAsset,
+              onOpenSeriesInfo: onOpenSeriesInfo,
+              onWatchNow: onWatchNow,
+              controlsVisible: controlsVisible,
+            ),
           ],
-          
-          // ✨ DIPERBAIKI: WatchTitleInfoSection dikeluarkan dari kondisi isUnlocked
-          // agar tombol "Tonton Sekarang" pada reels selalu muncul & bisa diklik meskipun status episode terkunci
-          WatchTitleInfoSection(
-            bottomPad: bottomPad,
-            genresLine: genresLine,
-            seriesTitle: series.title,
-            contentRating: series.contentRating,
-            synopsis: series.synopsis,
-            reelsPreview: reelsPreview,
-            ageRatingAsset: ageRatingAsset,
-            onOpenSeriesInfo: onOpenSeriesInfo,
-            onWatchNow: onWatchNow,
-            controlsVisible: controlsVisible,
-          ),
-
           WatchSwipeGuideOverlay(
             showSwipeGuide: isActive && isUnlocked && hasVideo && showSwipeGuide,
             bottomPad: bottomPad,
