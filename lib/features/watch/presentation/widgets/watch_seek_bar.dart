@@ -9,18 +9,18 @@ class WatchSeekBar extends StatelessWidget {
     required this.inactiveColor,
   });
 
-  final media_kit_pkg.Player player; // Diubah dari BetterPlayerController ke media_kit Player
+  final media_kit_pkg.Player player;
   final Color activeColor;
   final Color inactiveColor;
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<media_kit_pkg.PlayerState>(
-      stream: player.stream,
+    // Menggunakan StreamBuilder khusus untuk posisi agar lebih efisien & ringan
+    return StreamBuilder<Duration>(
+      stream: player.stream.position,
       builder: (context, snapshot) {
-        final state = snapshot.data ?? player.state;
-        final position = state.position;
-        final duration = state.duration;
+        final position = snapshot.data ?? player.state.position;
+        final duration = player.state.duration;
 
         final dur = duration.inMilliseconds;
         final pos = position.inMilliseconds;
