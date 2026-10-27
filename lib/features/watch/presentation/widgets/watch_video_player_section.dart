@@ -60,12 +60,10 @@ class WatchVideoPlayerSection extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
+        // 1. Alas hitam mutlak agar transisi hardware player menyatu sempurna
         const ColoredBox(color: Colors.black),
-        
-        // 1. Background poster sebagai visual awal yang mulus
-        _buildBackground(bg),
 
-        // 2. MediaKit Video Widget langsung aktif begitu controller tersedia (Tanpa menunggu 'ready' yang kaku)
+        // 2. ✨ LANGSUNG PUTAR FILM: Video langsung dirender detik itu juga begitu controller ada ✨
         if (isUnlocked && hasVideo && controller != null)
           Positioned.fill(
             child: media_kit_video.Video(
@@ -75,17 +73,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
             ),
           ),
 
-        // 3. Poster penutup transparan: Memudar mulus (fade out) begitu video benar-benar siap berputar
-        AnimatedOpacity(
-          opacity: (ready && controller != null) ? 0.0 : 1.0,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-          child: IgnorePointer(
-            child: _buildBackground(bg),
-          ),
-        ),
-
-        // 4. Cinema bottom gradient shadow
+        // 3. Cinema bottom gradient shadow
         Positioned(
           left: 0,
           right: 0,
@@ -111,7 +99,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
           ),
         ),
 
-        // 5. Subtle iOS top gradient for status bar
+        // 4. Subtle iOS top gradient for status bar
         Positioned(
           left: 0,
           right: 0,
@@ -135,7 +123,7 @@ class WatchVideoPlayerSection extends StatelessWidget {
           ),
         ),
 
-        // 6. Center Play/Pause Indicator (Muncul interaktif saat disentuh/pause)
+        // 5. Center Play/Pause Indicator
         if (ready && isUnlocked && player != null)
           Center(
             child: StreamBuilder<bool>(
@@ -164,31 +152,9 @@ class WatchVideoPlayerSection extends StatelessWidget {
             ),
           ),
 
-        // 7. Bottom Controls, Progress Bar & Duration
+        // 6. Bottom Controls, Progress Bar & Duration
         if (ready && isUnlocked && player != null) ..._buildInteractiveBottomBar(context, t, player),
       ],
-    );
-  }
-
-  Widget _buildBackground(String bg) {
-    if (bg.isEmpty) {
-      return Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xff0b0b0b),
-              Colors.black,
-            ],
-          ),
-        ),
-      );
-    }
-    return AppCachedImage(
-      imageUrl: bg,
-      fit: BoxFit.cover,
-      errorWidget: (_) => Container(color: const Color(0xff0b0b0b)),
     );
   }
 
@@ -210,7 +176,6 @@ class WatchVideoPlayerSection extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Progress Bar & Durasi (Menit:Detik)
                 StreamBuilder<Duration>(
                   stream: player.stream.position,
                   builder: (context, posSnapshot) {
@@ -266,7 +231,6 @@ class WatchVideoPlayerSection extends StatelessWidget {
                   },
                 ),
                 const SizedBox(height: 6),
-                // Baris Tombol Kualitas, Dubbed, dan VIP
                 Row(
                   children: [
                     if (ep != null)
