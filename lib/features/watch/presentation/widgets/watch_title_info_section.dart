@@ -44,6 +44,7 @@ class WatchTitleInfoSection extends StatelessWidget {
             children: [
               // Title in White + Arrow only
               GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: onOpenSeriesInfo,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -93,6 +94,7 @@ class WatchTitleInfoSection extends StatelessWidget {
               // Wide Grey "Watch Now" Button with Play Icon
               const SizedBox(height: 10),
               GestureDetector(
+                behavior: HitTestBehavior.opaque, // 👈 KUNCI UTAMA: Agar sentuhan langsung diterima tombol ini
                 onTap: onWatchNow,
                 child: Container(
                   width: 250,
@@ -175,6 +177,7 @@ class WatchTitleInfoSection extends StatelessWidget {
                 ),
               const SizedBox(height: 7),
               GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: onOpenSeriesInfo,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
