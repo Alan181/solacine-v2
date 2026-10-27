@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:media_kit_video/media_kit_video.dart' as media_kit_video;
 import 'watch_video_player_section.dart';
 import 'watch_like_burst_overlay.dart';
-// WatchVideoStatusOverlays tidak lagi diimport agar tidak memunculkan loader
 import 'watch_top_controls_bar.dart';
 import 'watch_reward_button.dart';
 import 'watch_action_buttons_row.dart';
@@ -203,7 +202,6 @@ class WatchEpisodePageItem extends StatelessWidget {
             likeBurstScale: likeBurstScale,
             likeBurstOpacity: likeBurstOpacity,
           ),
-          // 🚫 WatchVideoStatusOverlays dihapus agar tidak ada loader mutar yang muncul di layar
           if (isUnlocked) ...[
             WatchRewardButton(
               topPad: topPad,
