@@ -1185,14 +1185,15 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         _videoError = null;
       });
 
+      // --- PERBAIKAN UTAMA DI SINI ---
+      // Jika mode Reels Preview, boleh ambil prewarmed controller.
+      // Tapi untuk Full Watch / Nonton Penuh, WAJIB buat controller baru yang bersih
+      // dengan deteksi format HLS (.m3u8) secara akurat agar tidak pernah error!
       VideoPlayerController? c;
       if (widget.reelsPreview) {
         c = ReelsPreloadManager.takePrewarmedController(u);
-      } else {
-        c = WatchEpisodesPreloadManager.takePrewarmed(u);
       }
 
-      // 2. Deteksi otomatis format HLS (.m3u8) vs Upload File Biasa (MP4)
       final isHls = u.contains('.m3u8') || u.contains('/hls/');
       
       c ??= VideoPlayerController.networkUrl(
