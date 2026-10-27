@@ -89,7 +89,6 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> with WidgetsBindingOb
       if (i >= index && i <= index + 2) {
         final slug = it.watchSlug.trim().isNotEmpty ? it.watchSlug : it.slug;
         final ep = it.watchEpisodeNumber > 0 ? it.watchEpisodeNumber : 1;
-        // Memanggil prefetch menggunakan ReelsPreloadManager yang sudah berbasis media_kit
         ReelsPreloadManager.prefetch(ref: ref, slug: slug, episode: ep);
       }
     }
@@ -155,10 +154,7 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> with WidgetsBindingOb
             }
 
             final slug = it.watchSlug.trim().isNotEmpty ? it.watchSlug : it.slug;
-            
-            // Menggunakan episode yang valid (default ke 1 jika tidak ada) agar langsung terbuka instan
             final ep = it.watchEpisodeNumber > 0 ? it.watchEpisodeNumber : 1;
-            
             final poster = (it.posterUrl.trim().isNotEmpty ? it.posterUrl : it.featuredImageUrl).trim();
             return WatchScreen(
               key: ValueKey('reels_${slug}_${ep}_$i'),
@@ -281,9 +277,7 @@ class _ReelsPlaceholder extends StatelessWidget {
             ),
           ),
         ),
-        const Center(
-          child: AppLoadingIndicator(radius: 14),
-        ),
+        // 🚫 AppLoadingIndicator dihapus agar tidak ada ikon mutar loading saat swipe reels
       ],
     );
   }
