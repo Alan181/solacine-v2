@@ -1,42 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:media_kit/media_kit.dart' as media_kit_pkg;
+import 'package:video_player/video_player.dart';
 
 class WatchSeekBar extends StatelessWidget {
   const WatchSeekBar({
     super.key,
-    required this.player,
+    required this.controller,
     required this.activeColor,
     required this.inactiveColor,
   });
 
-  final media_kit_pkg.Player player;
+  final VideoPlayerController controller;
   final Color activeColor;
   final Color inactiveColor;
 
   @override
   Widget build(BuildContext context) {
-    // Menggunakan StreamBuilder khusus untuk posisi agar lebih efisien & ringan
-    return StreamBuilder<Duration>(
-      stream: player.stream.position,
-      builder: (context, snapshot) {
-        final position = snapshot.data ?? player.state.position;
-        final duration = player.state.duration;
-
-        final dur = duration.inMilliseconds;
-        final pos = position.inMilliseconds;
-        final progressValue = dur <= 0 ? 0.0 : (pos / dur).clamp(0.0, 1.0);
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final v = controller.value;
+        final dur = v.duration.inMilliseconds;
+        final pos = v.position.inMilliseconds;
+        final value = dur <= 0 ? 0.0 : (pos / dur).clamp(0.0, 1.0);
 
         return LayoutBuilder(
           builder: (context, constraints) {
             final w = constraints.maxWidth;
-            final activeW = w * progressValue;
+            final activeW = w * value;
             final thumbX = (activeW - 5).clamp(0.0, w - 10);
 
             void seek(Offset local) {
               if (dur <= 0) return;
               final next = (local.dx / w).clamp(0.0, 1.0);
-              final targetDuration = Duration(milliseconds: (dur * next).round());
-              player.seek(targetDuration);
+              controller.seekTo(Duration(milliseconds: (dur * next).round()));
             }
 
             return GestureDetector(
