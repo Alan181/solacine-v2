@@ -88,12 +88,15 @@ class WatchTitleInfoSection extends StatelessWidget {
               const SizedBox(height: 10),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: onWatchNow,
+                onTap: () {
+                  debugPrint('[WatchTitleInfoSection] Tombol Tonton Sekarang diklik');
+                  onWatchNow();
+                },
                 child: Container(
                   width: 250,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2A2A2E).withValues(alpha: 0.55),
+                    color: const Color(0xFF2A2A2E).withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
