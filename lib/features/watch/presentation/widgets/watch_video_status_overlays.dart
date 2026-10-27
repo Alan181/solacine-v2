@@ -1,4 +1,4 @@
-Import 'package:flutter/cupertino.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:solacine_mobile/app/i18n.dart';
@@ -59,7 +59,28 @@ class WatchVideoStatusOverlays extends StatelessWidget {
       );
     }
 
-    // 🚫 BLOK LOADING DIHAPUS: Loader bundar / spinner tidak akan pernah muncul lagi!
+    if (loadingEpisode || (isActive && isUnlocked && hasVideo && videoLoading)) {
+      return Center(
+        child: Container(
+          width: 68,
+          height: 68,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.50),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.20),
+              width: 1.5,
+            ),
+          ),
+          child: const Center(
+            child: CupertinoActivityIndicator(
+              radius: 16,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+    }
 
     if (isActive && isUnlocked && hasVideo && videoError != null) {
       return Center(
