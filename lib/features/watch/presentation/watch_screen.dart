@@ -1185,7 +1185,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         _videoError = null;
       });
 
-      // --- PERBAIKAN FORMAT PEMUTAR VIDEO UNTUK FILE MP4 & HLS ---
       VideoPlayerController? c;
       if (widget.reelsPreview) {
         c = ReelsPreloadManager.takePrewarmedController(u);
@@ -1313,7 +1312,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         _triggerPreloadNextEpisodes(episodeNumber);
         return;
       } catch (e) {
-        lastError = e;
+        lastError = e; // Menangkap error asli di sini
         try {
           await c.dispose();
         } catch (_) {}
@@ -1323,10 +1322,11 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     }
 
     if (!mounted) return;
+    // --- KITA PAKSA TAMPILKAN ERROR ASLI DI LAYAR DI SINI ---
     setState(() {
       _videoReady = false;
       _videoLoading = false;
-      _videoError = (lastError ?? 'Playback error').toString();
+      _videoError = 'ERROR ASLI: ${(lastError ?? 'Unknown playback error').toString()}';
     });
   }
 
