@@ -5,8 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
-import 'package:media_kit/media_kit.dart' as media_kit_pkg;
-import 'package:media_kit_video/media_kit_video.dart' as media_kit_video;
+import 'package:video_player/video_player.dart';
 import 'package:screen_security/screen_security.dart';
 import 'package:solacine_mobile/shared/widgets/app_cached_image.dart';
 import '../../../app/i18n.dart';
@@ -56,7 +55,7 @@ class WatchScreen extends ConsumerStatefulWidget {
 class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
   final _screenSecurity = ScreenSecurity();
 
-  var _loading = false; // Langsung false agar tidak memicu loading screen awal yang memunculkan layar hitam/putih
+  var _loading = true;
   Object? _error;
   WatchDataDto? _data;
 
@@ -67,14 +66,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   int _episodesSinceLastAd = 0;
   final int _adFrequencyInterval = 5;
 
-  // MediaKit Controller & Preload Pool Instances
-  media_kit_pkg.Player? _player;
-  media_kit_video.VideoController? _videoController;
-  
-  // Preload player kedua khusus untuk menyiapkan episode berikutnya di background
-  media_kit_pkg.Player? _preloadPlayer;
-  String? _preloadedUrl;
-
+  VideoPlayerController? _video;
   var _videoReady = false;
   var _videoOpId = 0;
   var _disposed = false;
@@ -149,8 +141,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         systemNavigationBarIconBrightness: Brightness.light,
       ),
     );
-
-    // ✨ OPTIMASI INSTAN: Ambil data dari cache memori seketika tanpa menunggu request jaringan ✨
     Future.microtask(() async {
       final prefs = await ref.read(sharedPrefsProvider.future);
       final enabled = prefs.getBool('watch_auto_unlock') ?? false;
@@ -167,35 +157,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         _showSwipeGuide = !seenGuide;
         _restoreEpisodeNumber = (restoreSlug.trim().isNotEmpty && restoreSlug.trim() == widget.slug && restoreEp > 0) ? restoreEp : null;
       });
-
-      final initialEpisode = (widget.episodeNumber != null && (widget.episodeNumber ?? 0) > 0) ? widget.episodeNumber : (_restoreEpisodeNumber ?? 1);
-      final cached = ReelsPreloadManager.getCachedData(widget.slug);
-
-      if (cached != null) {
-        _data = cached;
-        _episodesTotal = cached.episodesTotal;
-        _episodesPages = cached.episodesPages;
-        _loadedPages.add(cached.episodesPage > 0 ? cached.episodesPage : 1);
-        for (final e in cached.episodes) {
-          _episodesByNumber[e.episodeNumber] = e;
-        }
-
-        final activeNum = initialEpisode!;
-        final initial = widget.reelsPreview ? 0 : (_episodesTotal > 0 ? (activeNum - 1).clamp(0, _episodesTotal - 1) : 0);
-        _lastProcessedEpisode = activeNum;
-
-        if (mounted) {
-          setState(() {
-            _index = initial;
-            _likesCount = cached.series.likesCount;
-            _isLiked = cached.series.isLiked;
-          });
-        }
-
-        await _startEpisodeNumber(activeNum);
-      } else {
-        await _load();
-      }
+      await _load();
     });
   }
 
@@ -208,14 +170,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     _disposed = true;
     _videoOpId++;
     try {
-      _player?.dispose();
+      _video?.pause();
+      _video?.dispose();
     } catch (_) {}
-    try {
-      _preloadPlayer?.dispose();
-    } catch (_) {}
-    _player = null;
-    _preloadPlayer = null;
-    _videoController = null;
+    _video = null;
     _pageController.dispose();
     _likeBurst.dispose();
     _rewardShake.dispose();
@@ -236,7 +194,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       try {
-        _player?.pause();
+        _video?.pause();
       } catch (_) {}
     }
   }
@@ -248,7 +206,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     final isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
     if (!isCurrent) {
       try {
-        _player?.pause();
+        _video?.pause();
       } catch (_) {}
     }
   }
@@ -258,11 +216,13 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isActive && !widget.isActive) {
       try {
-        _player?.pause();
+        _video?.pause();
       } catch (_) {}
     } else if (!oldWidget.isActive && widget.isActive) {
       try {
-        _player?.play();
+        if (_video != null && _video!.value.isInitialized) {
+          _video!.play();
+        }
       } catch (_) {}
     }
   }
@@ -278,8 +238,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     _autoHideControlsTimer?.cancel();
     _autoHideControlsTimer = Timer(inFor, () {
       if (!mounted || _disposed) return;
-      final p = _player;
-      if (p != null && p.state.playing) return;
+      final p = _video;
+      if (p != null && p.value.isInitialized && !p.value.isPlaying) return;
       _hideControls();
     });
   }
@@ -313,10 +273,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   }
 
   void _onScreenTap() {
-    final p = _player;
-    if (p != null) {
-      final isPlaying = p.state.playing;
-      if (isPlaying) {
+    final p = _video;
+    if (p != null && p.value.isInitialized) {
+      if (p.value.isPlaying) {
         p.pause();
         _showControls(scheduleAutoHide: false);
       } else {
@@ -333,10 +292,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
   void _onCenterPlayPressed() {
     if (!mounted) return;
-    final p = _player;
-    if (p != null) {
-      final isPlaying = p.state.playing;
-      if (isPlaying) {
+    final p = _video;
+    if (p != null && p.value.isInitialized) {
+      if (p.value.isPlaying) {
         p.pause();
         _showControls(scheduleAutoHide: false);
       } else {
@@ -456,12 +414,12 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   int get _currentEpisodeNumber => _episodeNumberForPageIndex(_index);
 
   Future<void> _pauseVideoAndPush(String route) async {
-    final p = _player;
+    final v = _video;
     final bool wasPlaying;
-    if (p != null) {
-      wasPlaying = p.state.playing;
+    if (v != null && v.value.isInitialized) {
+      wasPlaying = v.value.isPlaying;
       if (wasPlaying) {
-        p.pause();
+        await v.pause();
         if (mounted) setState(() {});
       }
     } else {
@@ -470,10 +428,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     if (!mounted) return;
     await context.push(route);
     if (mounted && wasPlaying) {
-      final currentP = _player;
-      if (currentP != null && !currentP.state.playing) {
+      final vv = _video;
+      if (vv != null && vv.value.isInitialized && !vv.value.isPlaying) {
         try {
-          currentP.play();
+          await vv.play();
           if (mounted) setState(() {});
         } catch (_) {}
       }
@@ -482,7 +440,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
   void _safePopOrHome() {
     try {
-      _player?.pause();
+      _video?.pause();
     } catch (_) {}
     final router = GoRouter.of(context);
     if (widget.fromReels) {
@@ -502,11 +460,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
     try {
       try {
-        _player?.pause();
-        _player?.dispose();
+        await _video?.pause();
+        _video?.dispose();
       } catch (_) {}
-      _player = null;
-      _videoController = null;
+      _video = null;
 
       final randomData = await ref.read(watchApiProvider).getRandomSeries(currentSlug: widget.slug);
       
@@ -520,7 +477,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       final targetTitle = randomData.title;
 
       if (!mounted) return;
+
       final targetPath = '/watch/$targetSlug?title=${Uri.encodeComponent(targetTitle)}&from=reels';
+      
+      // Menggunakan push() agar riwayat stack tersimpan dan tombol kembali (back) aktif berfungsi normal
       context.push(targetPath);
     } catch (e) {
       _isNavigatingRandom = false;
@@ -532,7 +492,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
   Future<void> _showExitInterstitialAndLeave({required bool isVipUser}) async {
     try {
-      _player?.pause();
+      await _video?.pause();
     } catch (_) {}
     if (_fullScreenAdOpen) {
       _safePopOrHome();
@@ -562,7 +522,16 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
     try {
       if (!mounted) return;
-      if (widget.reelsPreview || isVipUser) {
+      if (widget.reelsPreview) {
+        exitTimeoutTimer.cancel();
+        _exitBlockedUiTimer?.cancel();
+        _exitInterstitialShowing = false;
+        _exitInterstitialBlockedUI = false;
+        if (mounted) setState(() {});
+        _safePopOrHome();
+        return;
+      }
+      if (isVipUser) {
         exitTimeoutTimer.cancel();
         _exitBlockedUiTimer?.cancel();
         _exitInterstitialShowing = false;
@@ -582,7 +551,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
       if (canShowAd && cfg != null) {
         try {
-          _player?.pause();
+          await _video?.pause();
         } catch (_) {}
         try {
           final adsSvc = ref.read(adsServiceProvider);
@@ -651,7 +620,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
         if (cfg != null && adsSvc.adsEnabled(cfg)) {
           try {
-            _player?.pause();
+            await _video?.pause();
           } catch (_) {}
 
           if (mounted) setState(() => _fullScreenAdOpen = true);
@@ -667,8 +636,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             }
             
             try {
-              if (_player != null) {
-                _player!.play();
+              if (_video != null && _video!.value.isInitialized) {
+                await _video!.play();
                 _scheduleAutoHideControls();
               }
             } catch (_) {}
@@ -707,9 +676,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       _vastRewardCompleter!.complete(completed);
       _vastRewardCompleter = null;
     }
-    if (widget.isActive && _videoReady && _player != null && !_player!.state.playing) {
+    if (widget.isActive && _videoReady && _video != null && !_video!.value.isPlaying) {
       try {
-        _player!.play();
+        _video!.play();
       } catch (_) {}
     }
   }
@@ -742,7 +711,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           _activeVastAd = adData;
         });
         try {
-          _player?.pause();
+          await _video?.pause();
         } catch (_) {}
         final finished = await completer.future.timeout(const Duration(seconds: 25), onTimeout: () => false);
         if (!finished && mounted && _activeVastAd != null) {
@@ -766,7 +735,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       _fullScreenAdOpen = true;
       if (mounted) setState(() {});
       try {
-        _player?.pause();
+        await _video?.pause();
       } catch (_) {}
 
       bool completed = false;
@@ -810,7 +779,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     _fullScreenAdOpen = true;
     if (mounted) setState(() {});
     try {
-      _player?.pause();
+      await _video?.pause();
     } catch (_) {}
     final completed = await ref.read(adsServiceProvider).showRewarded(onEarnedReward: () {}, requireEarnedReward: true);
     _fullScreenAdOpen = false;
@@ -1096,9 +1065,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                             Navigator.of(context).pop();
                             WidgetsBinding.instance.addPostFrameCallback((_) async {
                               if (!mounted) return;
-                              final p = _player;
-                              final pos = p != null ? p.state.position : Duration.zero;
-                              final wasPlaying = p != null ? p.state.playing : true;
+                              final p = _video;
+                              final pos = (p != null && p.value.isInitialized) ? p.value.position : Duration.zero;
+                              final wasPlaying = (p != null && p.value.isInitialized) ? p.value.isPlaying : true;
                               setState(() {
                                 _preferredQualityByEpisode[ep.episodeNumber] = q;
                                 _preferredUrlByEpisode[ep.episodeNumber] = u;
@@ -1160,7 +1129,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     _inModalSheet = false;
   }
 
-  // ULTRA-FAST INSTANT PLAYER START & PRELOAD POOL POINTER SWAP
   Future<void> _startEpisodeNumber(
     int episodeNumber, {
     Duration? resumePosition,
@@ -1171,7 +1139,26 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     if (data == null) return;
 
     final ep = _episodesByNumber[episodeNumber];
-    if (ep == null) return;
+    if (ep == null) {
+      return;
+    }
+    final url = ep.videoUrl.trim();
+
+    setState(() {
+      _videoReady = false;
+      _videoLoading = false;
+      _videoError = null;
+      _activeVideoUrl = url;
+    });
+    final old = _video;
+    _video = null;
+    if (old != null) {
+      try {
+        await old.dispose();
+      } catch (_) {}
+    }
+    if (!mounted || _disposed || opId != _videoOpId) return;
+
     final urls = _candidateUrls(ep);
     if (!ep.isUnlocked || urls.isEmpty) {
       if (mounted) {
@@ -1185,98 +1172,158 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       return;
     }
 
-    final targetUrl = urls.first;
+    setState(() => _videoLoading = true);
+    Object? lastError;
+    final shouldPlay = resumePlaying ?? true;
+    for (final u in urls) {
+      if (!mounted || _disposed || opId != _videoOpId) return;
+      setState(() {
+        _activeVideoUrl = u;
+        _videoError = null;
+      });
 
-    _activeVideoUrl = targetUrl;
-    _videoError = null;
-
-    // 1. Periksa apakah video ini sudah di-preload di background oleh _preloadPlayer
-    if (_preloadPlayer != null && _preloadedUrl == targetUrl) {
+      VideoPlayerController? c;
+      if (widget.reelsPreview) {
+        c = ReelsPreloadManager.takePrewarmedController(u);
+      } else {
+        c = WatchEpisodesPreloadManager.takePrewarmed(u);
+      }
+      c ??= VideoPlayerController.networkUrl(Uri.parse(u));
+      _video = c;
       try {
-        final oldPlayer = _player;
-        _player = _preloadPlayer;
-        _videoController = media_kit_video.VideoController(_player!);
-        _preloadPlayer = null;
-        _preloadedUrl = null;
+        if (!c.value.isInitialized) {
+          await c.initialize();
+        }
+        if (!mounted || _disposed || opId != _videoOpId) {
+          try {
+            await c.dispose();
+          } catch (_) {}
+          if (_video == c) _video = null;
+          return;
+        }
+        await c.setPlaybackSpeed(_playbackSpeed);
+        await c.setLooping(false);
 
-        oldPlayer?.dispose();
+        bool hasTriggeredNext = false;
+
+        c.addListener(() {
+          if (!mounted || _disposed || opId != _videoOpId) return;
+          final value = c?.value;
+          if (value == null || !value.isInitialized) return;
+
+          final position = value.position;
+          final duration = value.duration;
+          
+          if (duration.inSeconds < 1) return;
+
+          final bool isFinished = (position >= duration) || 
+                                 (!value.isPlaying && position >= duration - const Duration(seconds: 3));
+
+          if (isFinished && !hasTriggeredNext) {
+            hasTriggeredNext = true;
+            
+            final currentEpNum = _currentEpisodeNumber;
+            final maxEpisodes = _episodesTotal > 0 ? _episodesTotal : (_data?.episodesTotal ?? 0);
+            final nextEpNum = currentEpNum + 1;
+
+            final bool hasNextEpisode = (maxEpisodes > 0 && nextEpNum <= maxEpisodes) || 
+                                        _episodesByNumber.containsKey(nextEpNum);
+
+            if (hasNextEpisode && _index < (maxEpisodes > 0 ? maxEpisodes - 1 : _index + 1)) {
+              final nextIndex = _index + 1;
+              if (_pageController.hasClients) {
+                _pageController.animateToPage(
+                  nextIndex,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              }
+            } else {
+              final total = _episodesTotal > 0 ? _episodesTotal : maxEpisodes;
+              if (total > 0 && _pageController.hasClients) {
+                _pageController.animateToPage(
+                  total,
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeInOut,
+                );
+              } else {
+                _navigateToRandomSeries();
+              }
+            }
+          }
+
+          if (position < duration - const Duration(seconds: 4)) {
+            hasTriggeredNext = false;
+          }
+        });
 
         if (resumePosition != null && resumePosition > Duration.zero) {
-          await _player!.seek(resumePosition);
+          final dur = c.value.duration;
+          final next = dur > Duration.zero && resumePosition > dur ? dur : resumePosition;
+          await c.seekTo(next);
         }
-
-        if (widget.isActive) {
-          await _player!.play();
-        }
-
-        if (mounted) {
+        if (shouldPlay && widget.isActive) {
           setState(() {
             _videoReady = true;
             _videoLoading = false;
+            _videoError = null;
           });
+          await _maybeShowVastPreroll();
+          if (!mounted || _disposed || opId != _videoOpId) {
+            try {
+              await c.dispose();
+            } catch (_) {}
+            if (_video == c) _video = null;
+            return;
+          }
+          await c.play();
+        } else {
+          await c.pause();
         }
-
-        await _maybeShowVastPreroll();
-        _showControls();
-        _triggerPreloadNextEpisodes(episodeNumber);
-        return;
-      } catch (_) {}
-    }
-
-    // 2. Jika belum, gunakan player utama secara langsung
-    final player = _player ?? media_kit_pkg.Player();
-    final videoController = _videoController ?? media_kit_video.VideoController(player);
-
-    _player = player;
-    _videoController = videoController;
-
-    try {
-      await player.setRate(_playbackSpeed);
-      await player.open(media_kit_pkg.Media(targetUrl), play: (resumePlaying ?? true) && widget.isActive);
-
-      if (resumePosition != null && resumePosition > Duration.zero) {
-        await player.seek(resumePosition);
-      }
-
-      if (!mounted || _disposed || opId != _videoOpId) return;
-
-      if (mounted) {
+        if (!mounted || _disposed || opId != _videoOpId) {
+          try {
+            await c.dispose();
+          } catch (_) {}
+          if (_video == c) _video = null;
+          return;
+        }
         setState(() {
           _videoReady = true;
           _videoLoading = false;
           _videoError = null;
         });
+        _showControls();
+        _triggerPreloadNextEpisodes(episodeNumber);
+        return;
+      } catch (e) {
+        lastError = e;
+        try {
+          await c.dispose();
+        } catch (_) {}
+        if (!mounted || _disposed || opId != _videoOpId) return;
+        if (_video == c) _video = null;
       }
-
-      await _maybeShowVastPreroll();
-      _showControls();
-      _triggerPreloadNextEpisodes(episodeNumber);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _videoReady = false;
-        _videoLoading = false;
-        _videoError = e.toString();
-      });
     }
+
+    if (!mounted) return;
+    setState(() {
+      _videoReady = false;
+      _videoLoading = false;
+      _videoError = (lastError ?? 'Playback error').toString();
+    });
   }
 
-  // Siapkan episode berikutnya secara diam-diam di background player
   void _triggerPreloadNextEpisodes(int currentEpNum) {
     if (widget.reelsPreview) return;
     final nextEpNum = currentEpNum + 1;
     final nextEp = _episodesByNumber[nextEpNum];
-    if (nextEp == null || !nextEp.isUnlocked) return;
-
-    final nextUrls = _candidateUrls(nextEp);
-    final nextUrl = nextUrls.isNotEmpty ? nextUrls.first : nextEp.videoUrl.trim();
-    if (nextUrl.isEmpty || _preloadedUrl == nextUrl) return;
-
-    try {
-      _preloadPlayer ??= media_kit_pkg.Player();
-      _preloadedUrl = nextUrl;
-      _preloadPlayer!.open(media_kit_pkg.Media(nextUrl), play: false);
-    } catch (_) {}
+    if (nextEp != null && nextEp.isUnlocked && nextEp.videoUrl.trim().isNotEmpty) {
+      final nextUrls = _candidateUrls(nextEp);
+      final nextUrl = nextUrls.isNotEmpty ? nextUrls.first : nextEp.videoUrl.trim();
+      if (nextUrl.isNotEmpty) {
+        WatchEpisodesPreloadManager.preloadUrl(nextUrl);
+      }
+    }
   }
 
   String _fmt(Duration d) {
@@ -1287,10 +1334,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   }
 
   Future<void> _setSpeed(double next) async {
-    final p = _player;
-    if (p == null) return;
+    final p = _video;
+    if (p == null || !p.value.isInitialized) return;
     try {
-      await p.setRate(next);
+      await p.setPlaybackSpeed(next);
       if (!mounted) return;
       setState(() => _playbackSpeed = next);
     } catch (_) {}
@@ -1808,7 +1855,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     if (data == null) return;
     if (widget.reelsPreview) return;
 
-    final wasPlaying = _player?.state.playing ?? false;
+    final wasPlaying = _video?.value.isPlaying ?? false;
     _inModalSheet = true;
     var selectedNew = false;
 
@@ -1850,10 +1897,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
     _inModalSheet = false;
     if (mounted && !selectedNew && wasPlaying) {
-      final p = _player;
-      if (p != null && !p.state.playing) {
+      final p = _video;
+      if (p != null && p.value.isInitialized && !p.value.isPlaying) {
         try {
-          p.play();
+          await p.play();
           if (!widget.reelsPreview) {
             _scheduleAutoHideControls();
           }
@@ -1929,7 +1976,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
                   if (totalEpisodes > 0 && i >= totalEpisodes) {
                     try {
-                      _player?.pause();
+                      _video?.pause();
                     } catch (_) {}
                     _navigateToRandomSeries();
                     return;
@@ -1961,10 +2008,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                   final epNum = _episodeNumberForPageIndex(i);
                   final ep = _episodesByNumber[epNum];
                   final isActive = i == _index;
-                  
-                  final mediaKitVideoController = isActive ? _videoController : null;
-                  
-                  final ready = isActive && _videoReady && mediaKitVideoController != null;
+                  final player = isActive ? _video : null;
+                  final ready = isActive && _videoReady && player != null && player.value.isInitialized;
                   final isUnlocked = ep?.isUnlocked ?? false;
                   final hasVideo = isUnlocked && ((ep?.videoUrl.trim().isNotEmpty ?? false));
                   final unlock = data.unlock;
@@ -1991,7 +2036,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                     epNum: epNum,
                     ep: ep,
                     isActive: isActive,
-                    mediaKitVideoController: mediaKitVideoController,
+                    player: player,
                     ready: ready,
                     isUnlocked: isUnlocked,
                     hasVideo: hasVideo,
@@ -2049,20 +2094,16 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                     onWatchNow: () {
                       final slug = series.slug.trim();
                       if (slug.isEmpty) return;
-                      
                       try {
-                        _player?.pause();
+                        _video?.pause();
                       } catch (_) {}
-
-                      if (widget.slug == slug) {
-                        if (_pageController.hasClients) {
-                          _pageController.jumpToPage(0);
+                      final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&from=reels';
+                      context.go('/reels');
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (context.mounted) {
+                          context.push(target);
                         }
-                        return;
-                      }
-
-                      final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&episode=1&from=reels';
-                      context.push(target);
+                      });
                     },
                     onTapReward: () => _pauseVideoAndPush('/rewards'),
                     onDismissReward: () => setState(() => _rewardDismissed = true),
