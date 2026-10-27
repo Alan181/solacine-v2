@@ -480,7 +480,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
       final targetPath = '/watch/$targetSlug?title=${Uri.encodeComponent(targetTitle)}&from=reels';
       
-      // Menggunakan push() agar riwayat stack tersimpan dan tombol kembali (back) aktif berfungsi normal
       context.push(targetPath);
     } catch (e) {
       _isNavigatingRandom = false;
@@ -1150,10 +1149,13 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       _videoError = null;
       _activeVideoUrl = url;
     });
+
+    // 1. Bersihkan controller lama secara total dan aman
     final old = _video;
     _video = null;
     if (old != null) {
       try {
+        await old.pause();
         await old.dispose();
       } catch (_) {}
     }
@@ -1175,6 +1177,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     setState(() => _videoLoading = true);
     Object? lastError;
     final shouldPlay = resumePlaying ?? true;
+
     for (final u in urls) {
       if (!mounted || _disposed || opId != _videoOpId) return;
       setState(() {
@@ -1188,8 +1191,17 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       } else {
         c = WatchEpisodesPreloadManager.takePrewarmed(u);
       }
-      c ??= VideoPlayerController.networkUrl(Uri.parse(u));
+
+      // 2. Deteksi otomatis format HLS (.m3u8) vs Upload File Biasa (MP4)
+      final isHls = u.contains('.m3u8') || u.contains('/hls/');
+      
+      c ??= VideoPlayerController.networkUrl(
+        Uri.parse(u),
+        formatHint: isHls ? VideoFormat.hls : null,
+      );
+      
       _video = c;
+
       try {
         if (!c.value.isInitialized) {
           await c.initialize();
@@ -1201,6 +1213,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           if (_video == c) _video = null;
           return;
         }
+
         await c.setPlaybackSpeed(_playbackSpeed);
         await c.setLooping(false);
 
@@ -1262,6 +1275,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           final next = dur > Duration.zero && resumePosition > dur ? dur : resumePosition;
           await c.seekTo(next);
         }
+
         if (shouldPlay && widget.isActive) {
           setState(() {
             _videoReady = true;
@@ -1280,6 +1294,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         } else {
           await c.pause();
         }
+
         if (!mounted || _disposed || opId != _videoOpId) {
           try {
             await c.dispose();
@@ -1287,6 +1302,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           if (_video == c) _video = null;
           return;
         }
+
         setState(() {
           _videoReady = true;
           _videoLoading = false;
