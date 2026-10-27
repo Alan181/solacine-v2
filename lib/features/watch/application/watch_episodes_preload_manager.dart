@@ -38,7 +38,14 @@ class WatchEpisodesPreloadManager {
 
     _inFlightUrls.add(cleanUrl);
     try {
-      final c = VideoPlayerController.networkUrl(Uri.parse(cleanUrl));
+      final isHls = cleanUrl.contains('.m3u8') || cleanUrl.contains('/hls/');
+      final isMp4 = cleanUrl.toLowerCase().endsWith('.mp4') || cleanUrl.contains('.mp4?');
+
+      final c = VideoPlayerController.networkUrl(
+        Uri.parse(cleanUrl),
+        formatHint: isHls ? VideoFormat.hls : (isMp4 ? VideoFormat.other : null),
+      );
+
       await c.initialize();
       await c.setLooping(true);
 
