@@ -156,12 +156,12 @@ class _ReelsScreenState extends ConsumerState<ReelsScreen> with WidgetsBindingOb
 
             final slug = it.watchSlug.trim().isNotEmpty ? it.watchSlug : it.slug;
             
-            // Jika watchEpisodeNumber tidak valid, biarkan null agar backend membaca riwayat terakhir dari database
-            final ep = it.watchEpisodeNumber > 0 ? it.watchEpisodeNumber : null;
+            // Menggunakan episode yang valid (default ke 1 jika tidak ada) agar langsung terbuka instan
+            final ep = it.watchEpisodeNumber > 0 ? it.watchEpisodeNumber : 1;
             
             final poster = (it.posterUrl.trim().isNotEmpty ? it.posterUrl : it.featuredImageUrl).trim();
             return WatchScreen(
-              key: ValueKey('reels_${slug}_${ep ?? 0}_$i'),
+              key: ValueKey('reels_${slug}_${ep}_$i'),
               slug: slug,
               title: it.title,
               episodeNumber: ep,
