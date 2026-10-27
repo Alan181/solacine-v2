@@ -2054,14 +2054,17 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                         _player?.pause();
                       } catch (_) {}
 
+                      // Ambil episode terakhir dari server database (watch history), fallback ke episode 1 jika belum ada
+                      final lastEp = (series.lastWatchedEpisodeNumber > 0) ? series.lastWatchedEpisodeNumber : 1;
+
                       if (widget.slug == slug) {
                         if (_pageController.hasClients) {
-                          _pageController.jumpToPage(0);
+                          _pageController.jumpToPage(lastEp - 1);
                         }
                         return;
                       }
 
-                      final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&episode=1&from=reels';
+                      final target = '/watch/$slug?title=${Uri.encodeComponent(series.title)}&episode=$lastEp&from=reels';
                       context.push(target);
                     },
                     onTapReward: () => _pauseVideoAndPush('/rewards'),
