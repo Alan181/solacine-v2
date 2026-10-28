@@ -1150,7 +1150,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       _activeVideoUrl = url;
     });
 
-    // 1. Bersihkan controller lama secara total dan aman
     final old = _video;
     _video = null;
     if (old != null) {
@@ -1185,10 +1184,11 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
         _videoError = null;
       });
 
-      // --- PERBAIKAN FORMAT PEMUTAR VIDEO UNTUK FILE MP4 & HLS ---
       VideoPlayerController? c;
       if (widget.reelsPreview) {
         c = ReelsPreloadManager.takePrewarmedController(u);
+      } else {
+        c = WatchEpisodesPreloadManager.takePrewarmed(u);
       }
 
       final isHls = u.contains('.m3u8') || u.contains('/hls/');
@@ -1225,39 +1225,25 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
           final value = c?.value;
           if (value == null || !value.isInitialized) return;
 
-          final position = value.position;
-          final duration = value.duration;
-          
-          if (duration.inSeconds < 1) return;
+          final bool isAtAbsoluteEnd = value.duration > Duration.zero && value.position >= value.duration;
+          final bool isNearEndPaused = value.duration > Duration.zero && 
+                                       value.position >= value.duration - const Duration(milliseconds: 1000) && 
+                                       !value.isPlaying;
 
-          final bool isFinished = (position >= duration) || 
-                                 (!value.isPlaying && position >= duration - const Duration(seconds: 3));
-
-          if (isFinished && !hasTriggeredNext) {
+          if ((isAtAbsoluteEnd || isNearEndPaused) && !hasTriggeredNext) {
             hasTriggeredNext = true;
             
             final currentEpNum = _currentEpisodeNumber;
             final maxEpisodes = _episodesTotal > 0 ? _episodesTotal : (_data?.episodesTotal ?? 0);
-            final nextEpNum = currentEpNum + 1;
 
-            final bool hasNextEpisode = (maxEpisodes > 0 && nextEpNum <= maxEpisodes) || 
-                                        _episodesByNumber.containsKey(nextEpNum);
-
-            if (hasNextEpisode && _index < (maxEpisodes > 0 ? maxEpisodes - 1 : _index + 1)) {
+            if (_index >= maxEpisodes - 1 || currentEpNum >= maxEpisodes) {
+              _navigateToRandomSeries();
+            } else {
               final nextIndex = _index + 1;
-              if (_pageController.hasClients) {
+              if (nextIndex < maxEpisodes && _pageController.hasClients) {
                 _pageController.animateToPage(
                   nextIndex,
                   duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              }
-            } else {
-              final total = _episodesTotal > 0 ? _episodesTotal : maxEpisodes;
-              if (total > 0 && _pageController.hasClients) {
-                _pageController.animateToPage(
-                  total,
-                  duration: const Duration(milliseconds: 350),
                   curve: Curves.easeInOut,
                 );
               } else {
@@ -1266,7 +1252,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
             }
           }
 
-          if (position < duration - const Duration(seconds: 4)) {
+          if (value.position < value.duration - const Duration(seconds: 2)) {
             hasTriggeredNext = false;
           }
         });
@@ -1330,19 +1316,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       _videoLoading = false;
       _videoError = realErrorText;
     });
-
-    // MEMUNCULKAN ERROR ASLI DI LAYAR BAWAH (SNACKBAR) SECARA TRANSPARAN
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'ERROR PEMUTARAN: $realErrorText',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.red.shade900,
-        duration: const Duration(seconds: 8),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   void _triggerPreloadNextEpisodes(int currentEpNum) {
@@ -2157,35 +2130,54 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                         episodeNumber: epNum,
                         onTogglePlayback: _onCenterPlayPressed,
                       ),
-                      // --- OVERLAY PESAN ERROR TEKS MERAH DI LAYAR JIKA PEMUTARAN GAGAL ---
+                      // --- LAYAR PEMBACA ERROR LANGSUNG (BACKGROUND HITAM, TULISAN MERAH) ---
                       if (isActive && _videoError != null && _videoError!.trim().isNotEmpty)
                         Positioned.fill(
                           child: Container(
-                            color: Colors.black.withValues(alpha: 0.85),
+                            color: Colors.black.withValues(alpha: 0.90),
                             padding: const EdgeInsets.all(24),
                             alignment: Alignment.center,
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
-                                const SizedBox(height: 12),
+                                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 56),
+                                const SizedBox(height: 16),
                                 const Text(
-                                  'GAGAL MEMUTAR VIDEO',
-                                  style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 16),
+                                  'GAGAL PEMUTARAN VIDEO',
+                                  style: TextStyle(
+                                    color: Colors.redAccent, 
+                                    fontWeight: FontWeight.bold, 
+                                    fontSize: 18,
+                                    letterSpacing: 0.5,
+                                  ),
                                   textAlign: TextAlign.center,
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _videoError!,
-                                  style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.4),
-                                  textAlign: TextAlign.center,
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black54,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Text(
+                                    _videoError!,
+                                    style: const TextStyle(
+                                      color: Colors.redAccent, 
+                                      fontSize: 13, 
+                                      height: 1.4,
+                                      fontFamily: 'monospace',
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
                                 ),
-                                const SizedBox(height: 20),
+                                const SizedBox(height: 24),
                                 ElevatedButton.icon(
                                   onPressed: () => _startEpisodeNumber(epNum),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xffef233c),
                                     foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   ),
                                   icon: const Icon(Icons.refresh_rounded),
