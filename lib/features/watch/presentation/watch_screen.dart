@@ -1220,6 +1220,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
         bool hasTriggeredNext = false;
 
+        // --- MENGGUNAKAN LOGIKA PENGAMAN STABIL DARI FILE LAMA ---
         c.addListener(() {
           if (!mounted || _disposed || opId != _videoOpId) return;
           final value = c?.value;
@@ -1316,6 +1317,18 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       _videoLoading = false;
       _videoError = realErrorText;
     });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'ERROR PEMUTARAN: $realErrorText',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.red.shade900,
+        duration: const Duration(seconds: 8),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _triggerPreloadNextEpisodes(int currentEpNum) {
@@ -2130,54 +2143,34 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                         episodeNumber: epNum,
                         onTogglePlayback: _onCenterPlayPressed,
                       ),
-                      // --- LAYAR PEMBACA ERROR LANGSUNG (BACKGROUND HITAM, TULISAN MERAH) ---
                       if (isActive && _videoError != null && _videoError!.trim().isNotEmpty)
                         Positioned.fill(
                           child: Container(
-                            color: Colors.black.withValues(alpha: 0.90),
+                            color: Colors.black.withValues(alpha: 0.85),
                             padding: const EdgeInsets.all(24),
                             alignment: Alignment.center,
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 56),
-                                const SizedBox(height: 16),
+                                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
+                                const SizedBox(height: 12),
                                 const Text(
-                                  'GAGAL PEMUTARAN VIDEO',
-                                  style: TextStyle(
-                                    color: Colors.redAccent, 
-                                    fontWeight: FontWeight.bold, 
-                                    fontSize: 18,
-                                    letterSpacing: 0.5,
-                                  ),
+                                  'GAGAL MEMUTAR VIDEO',
+                                  style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 16),
                                   textAlign: TextAlign.center,
                                 ),
-                                const SizedBox(height: 12),
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
-                                  ),
-                                  child: Text(
-                                    _videoError!,
-                                    style: const TextStyle(
-                                      color: Colors.redAccent, 
-                                      fontSize: 13, 
-                                      height: 1.4,
-                                      fontFamily: 'monospace',
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _videoError!,
+                                  style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.4),
+                                  textAlign: TextAlign.center,
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 20),
                                 ElevatedButton.icon(
                                   onPressed: () => _startEpisodeNumber(epNum),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xffef233c),
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   ),
                                   icon: const Icon(Icons.refresh_rounded),
