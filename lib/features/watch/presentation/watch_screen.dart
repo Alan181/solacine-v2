@@ -1031,7 +1031,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     return out;
   }
 
-  List> _qualityOptions(WatchEpisodeDto ep) {
+  List<Map<String, dynamic>> _qualityOptions(WatchEpisodeDto ep) {
     final items = <({String quality, String url, int rank})>[];
     for (final s in ep.sources) {
       final type = (s['source_type'] as String?)?.trim().toLowerCase() ?? '';
@@ -1043,7 +1043,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       items.add((quality: q, url: u, rank: _qualityRank(q)));
     }
     items.sort((a, b) => b.rank.compareTo(a.rank));
-    final out = >[];
+    final out = <Map<String, dynamic>>[];
     final seen = <String>{};
     for (final it in items) {
       if (seen.contains(it.quality)) continue;
@@ -1545,7 +1545,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   void _openMoreSheet(WatchEpisodeDto? ep) {
     final t = AppI18n.of(context);
     final e = ep;
-    final qualityOptions = e == null ? const >[] : _qualityOptions(e);
+    final qualityOptions = e == null ? const <Map<String, dynamic>>[] : _qualityOptions(e);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xff0b0b0b),
