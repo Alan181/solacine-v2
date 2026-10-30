@@ -34,6 +34,7 @@ class WatchSeriesDto {
   final bool isDubbed;
   final int freeEpisodes;
   final int viewsCount;
+  final int viewsCount;
   final String posterUrl;
   final String featuredImageUrl;
   final String logoUrl;
@@ -82,7 +83,7 @@ class WatchEpisodeDto {
   final bool isFree;
   final bool isUnlocked;
   final String videoUrl;
-  final List> sources;
+  final List> sources; // <-- Diperbaiki
 
   factory WatchEpisodeDto.fromJson(Map<String, dynamic> json) {
     final rawSources = json['sources'];
@@ -165,7 +166,6 @@ class WatchDataDto {
   }
 }
 
-// DTO sederhana untuk menampung data serial acak
 class RandomSeriesDto {
   const RandomSeriesDto({required this.slug, required this.title});
   final String slug;
@@ -195,7 +195,7 @@ class WatchApi {
     if (episodeNumber != null) qp['episode'] = episodeNumber;
     if (episodesPage != null) qp['episodes_page'] = episodesPage;
     if (episodesPerPage != null) qp['episodes_per_page'] = episodesPerPage;
-    final res = await _dio.get>(
+    final res = await _dio.get>( // <-- Diperbaiki
       '/v1/watch/$slug',
       queryParameters: qp.isEmpty ? null : qp,
       options: options,
@@ -208,8 +208,8 @@ class WatchApi {
     return WatchDataDto.fromJson(data);
   }
 
-  Future> toggleLike({required int seriesId}) async {
-    final res = await _dio.post>('/v1/series/$seriesId/like');
+  Future> toggleLike({required int seriesId}) async { // <-- Diperbaiki
+    final res = await _dio.post>('/v1/series/$seriesId/like'); // <-- Diperbaiki
     final map = res.data ?? const <String, dynamic>{};
     if (map['status'] != true) {
       throw Exception((map['message'] as String?) ?? 'Request failed');
@@ -229,7 +229,6 @@ class WatchApi {
     }
   }
 
-  // Fungsi untuk mengambil data serial acak untuk fitur auto-switch film
   Future<RandomSeriesDto?> getRandomSeries({required String currentSlug}) async {
     try {
       final res = await _dio.get>(
@@ -246,9 +245,8 @@ class WatchApi {
     }
   }
 
-  // TAMBAHAN BARU: Fungsi untuk mengklaim reward 10 koin per menit menonton
-  Future> claimMinuteReward({required int seriesId}) async {
-    final res = await _dio.post>(
+  Future> claimMinuteReward({required int seriesId}) async { // <-- Diperbaiki
+    final res = await _dio.post>( // <-- Diperbaiki
       '/v1/watch/claim-minute-reward',
       data: {'series_id': seriesId},
     );
