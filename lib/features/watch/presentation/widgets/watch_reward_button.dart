@@ -7,6 +7,7 @@ class WatchRewardButton extends StatelessWidget {
     super.key,
     required this.topPad,
     required this.rewardShakeAnimation,
+    required this.progressAnimation, // <-- Ditambahkan: parameter animasi lingkaran progress
     required this.rewardDismissed,
     required this.onTapReward,
     required this.onDismiss,
@@ -14,6 +15,7 @@ class WatchRewardButton extends StatelessWidget {
 
   final double topPad;
   final Animation<double> rewardShakeAnimation;
+  final Animation<double> progressAnimation; // <-- Ditambahkan
   final bool rewardDismissed;
   final VoidCallback onTapReward;
   final VoidCallback onDismiss;
@@ -37,12 +39,24 @@ class WatchRewardButton extends StatelessWidget {
                 onTap: onTapReward,
                 borderRadius: BorderRadius.circular(999),
                 child: AnimatedBuilder(
-                  animation: rewardShakeAnimation,
+                  // Menggabungkan animasi shake dan progress lingkaran
+                  animation: Listenable.merge([rewardShakeAnimation, progressAnimation]),
                   builder: (context, child) {
                     final s = math.sin(rewardShakeAnimation.value * math.pi * 2);
                     return Transform.translate(
                       offset: Offset(s * 2.0, 0),
-                      child: Transform.rotate(angle: s * 0.06, child: child),
+                      child: Transform.rotate(
+                        angle: s * 0.06,
+                        child: CustomPaint(
+                          painter: RewardProgressPainter(
+                            progress: progressAnimation.value,
+                            progressColor: Colors.amberAccent,
+                            trackColor: Colors.white.withValues(alpha: 0.15),
+                            strokeWidth: 3.0,
+                          ),
+                          child: child,
+                        ),
+                      ),
                     );
                   },
                   child: Container(
@@ -93,5 +107,58 @@ class WatchRewardButton extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// Painter untuk menggambar lingkaran progress durasi 1 menit
+class RewardProgressPainter extends CustomPainter {
+  RewardProgressPainter({
+    required this.progress,
+    required this.progressColor,
+    required this.trackColor,
+    required this.strokeWidth,
+  });
+
+  final double progress;
+  final Color progressColor;
+  final Color trackColor;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas sizeCanvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width / 2) + (strokeWidth / 2) + 1;
+
+    final trackPaint = Paint()
+      .setColor(trackColor)
+      .setStyle(PaintingStyle.stroke)
+      .setStrokeWidth(strokeWidth)
+      .setStrokeCap(StrokeCap.round);
+
+    sizeCanvas.drawCircle(center, radius, trackPaint);
+
+    final progressPaint = Paint()
+      .setColor(progressColor)
+      .setStyle(PaintingStyle.stroke)
+      .setStrokeWidth(strokeWidth)
+      .setStrokeCap(StrokeCap.round);
+
+    const startAngle = -math.pi / 2;
+    final sweepAngle = 2 * math.pi * progress;
+
+    sizeCanvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepAngle,
+      false,
+      progressPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant RewardProgressPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.progressColor != progressColor ||
+        oldDelegate.trackColor != trackColor;
   }
 }
