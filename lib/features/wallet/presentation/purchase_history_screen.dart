@@ -548,7 +548,7 @@ class _OrdersTabWidgetState extends ConsumerState<_OrdersTabWidget> {
 }
 
 // ==========================================
-// TAB 2: PENDAPATAN KOIN (EARNINGS)
+// TAB 2: PENDAPATAN KOIN (EARNINGS) - FIXED with coinTransactions
 // ==========================================
 class _EarningsTabWidget extends ConsumerStatefulWidget {
   const _EarningsTabWidget();
@@ -562,7 +562,7 @@ class _EarningsTabWidgetState extends ConsumerState<_EarningsTabWidget> {
   bool _loading = true;
   bool _loadingMore = false;
   WalletPagination? _pagination;
-  final List<CoinEarningsDto> _items = [];
+  final List<CoinTransactionDto> _items = [];
 
   @override
   void initState() {
@@ -587,11 +587,11 @@ class _EarningsTabWidgetState extends ConsumerState<_EarningsTabWidget> {
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
-      final res = await ref.read(walletApiProvider).coinEarnings(page: 1);
+      final res = await ref.read(walletApiProvider).coinTransactions(page: 1, perPage: 20);
       if (!mounted) return;
       setState(() {
         _items.clear();
-        _items.addAll(res.items);
+        _items.addAll(res.items.where((tx) => tx.type.toLowerCase() == 'credit'));
         _pagination = res.pagination;
       });
     } catch (_) {
@@ -607,10 +607,10 @@ class _EarningsTabWidgetState extends ConsumerState<_EarningsTabWidget> {
 
     setState(() => _loadingMore = true);
     try {
-      final res = await ref.read(walletApiProvider).coinEarnings(page: p.currentPage + 1);
+      final res = await ref.read(walletApiProvider).coinTransactions(page: p.currentPage + 1, perPage: p.perPage);
       if (!mounted) return;
       setState(() {
-        _items.addAll(res.items);
+        _items.addAll(res.items.where((tx) => tx.type.toLowerCase() == 'credit'));
         _pagination = res.pagination;
       });
     } catch (_) {
@@ -619,8 +619,8 @@ class _EarningsTabWidgetState extends ConsumerState<_EarningsTabWidget> {
     }
   }
 
-  IconData _getEarningIcon(String sourceType) {
-    final t = sourceType.toLowerCase();
+  IconData _getEarningIcon(String reason) {
+    final t = reason.toLowerCase();
     if (t.contains('check')) return Icons.event_available_rounded;
     if (t.contains('minute') || t.contains('watch')) return Icons.play_circle_outline_rounded;
     if (t.contains('task')) return Icons.task_alt_rounded;
@@ -628,13 +628,13 @@ class _EarningsTabWidgetState extends ConsumerState<_EarningsTabWidget> {
     return Icons.monetization_on_outlined;
   }
 
-  String _formatSourceLabel(String sourceType) {
-    final t = sourceType.toLowerCase();
+  String _formatSourceLabel(String reason) {
+    final t = reason.toLowerCase();
     if (t.contains('checkin') || t.contains('check_in')) return 'Daily Check-in';
     if (t.contains('minute') || t.contains('watch')) return 'Reward Tonton 1 Menit';
     if (t.contains('task')) return 'Task Reward';
     if (t.contains('drama')) return 'Reward Drama';
-    return sourceType.isEmpty ? 'Pendapatan Koin' : sourceType;
+    return reason.isEmpty ? 'Pendapatan Koin' : reason;
   }
 
   @override
@@ -709,21 +709,21 @@ class _EarningsTabWidgetState extends ConsumerState<_EarningsTabWidget> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: const Color(0xFF262830)),
                   ),
-                  child: Center(child: Icon(_getEarningIcon(item.sourceType), size: 16, color: const Color(0xFF9E9EA7))),
+                  child: Center(child: Icon(_getEarningIcon(item.reason), size: 16, color: const Color(0xFF9E9EA7))),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_formatSourceLabel(item.sourceType), style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w600)),
+                      Text(_formatSourceLabel(item.reason), style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
                       Text(dateStr, style: const TextStyle(color: Color(0xFF71717A), fontSize: 11)),
                     ],
                   ),
                 ),
                 Text(
-                  '+${item.coins} Koin',
+                  '+${item.amount} Koin',
                   style: const TextStyle(color: Color(0xFF4ADE80), fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ],
@@ -1443,6 +1443,7 @@ class _ErrorState extends StatelessWidget {
         border: Border.all(color: const Color(0xFF26282E)),
       ),
       child: Column(
+        details: [],
         children: [
           const Icon(Icons.cloud_off_rounded, size: 30, color: Color(0xFF71717A)),
           const SizedBox(height: 10),
@@ -1450,7 +1451,7 @@ class _ErrorState extends StatelessWidget {
             t.t('request_failed'),
             style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w500),
           ),
-      const SizedBox(height: 14),
+          const SizedBox(height: 14),
           SizedBox(
             height: 38,
             width: double.infinity,
