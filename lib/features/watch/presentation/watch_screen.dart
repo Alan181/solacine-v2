@@ -143,7 +143,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       vsync: this,
       duration: const Duration(seconds: 60),
     );
-    _startWatchRewardTimer();
+    if (!widget.reelsPreview) {
+      _startWatchRewardTimer();
+    }
 
     _guideShake = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat(reverse: true);
     _paywallAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 520));
@@ -2160,8 +2162,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                         likeBurstScale: _likeBurstScale,
                         likeBurstOpacity: _likeBurstOpacity,
                         rewardShakeAnimation: _rewardShake,
-                        progressAnimation: _rewardProgressController, // <-- DIKIRIM KE PAGE ITEM
-                        rewardDismissed: _rewardDismissed,
+                        progressAnimation: widget.reelsPreview ? null : _rewardProgressController,
+                        rewardDismissed: widget.reelsPreview || _rewardDismissed,
                         showSwipeGuide: _showSwipeGuide,
                         guideShakeAnimation: _guideShake,
                         isLiked: _isLiked,
