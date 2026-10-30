@@ -47,7 +47,8 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> w
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    // Diubah menjadi 4 tab (ditambah Pendapatan)
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -111,9 +112,11 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> w
             unselectedLabelColor: const Color(0xFF71717A),
             labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w400),
+            isScrollable: true,
             tabs: const [
               Tab(text: 'Pembelian'),
-              Tab(text: 'Konversi Koin'),
+              Tab(text: 'Pendapatan'),
+              Tab(text: 'Penukaran'),
               Tab(text: 'Penarikan'),
             ],
           ),
@@ -122,6 +125,7 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> w
           controller: _tabController,
           children: const [
             _OrdersTabWidget(),
+            _EarningsTabWidget(),
             _ConversionsTabWidget(),
             _WithdrawalsTabWidget(),
           ],
@@ -544,7 +548,195 @@ class _OrdersTabWidgetState extends ConsumerState<_OrdersTabWidget> {
 }
 
 // ==========================================
-// TAB 2: RIWAYAT KONVERSI KOIN
+// TAB 2: PENDAPATAN KOIN (EARNINGS)
+// ==========================================
+class _EarningsTabWidget extends ConsumerStatefulWidget {
+  const _EarningsTabWidget();
+
+  @override
+  ConsumerState<_EarningsTabWidget> createState() => _EarningsTabWidgetState();
+}
+
+class _EarningsTabWidgetState extends ConsumerState<_EarningsTabWidget> {
+  final _scrollController = ScrollController();
+  bool _loading = true;
+  bool _loadingMore = false;
+  WalletPagination? _pagination;
+  final List<CoinEarningsDto> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    Future.microtask(_loadData);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.maxScrollExtent - _scrollController.position.pixels < 240) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    try {
+      final res = await ref.read(walletApiProvider).coinEarnings(page: 1);
+      if (!mounted) return;
+      setState(() {
+        _items.clear();
+        _items.addAll(res.items);
+        _pagination = res.pagination;
+      });
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore) return;
+    final p = _pagination;
+    if (p == null || p.currentPage >= p.lastPage) return;
+
+    setState(() => _loadingMore = true);
+    try {
+      final res = await ref.read(walletApiProvider).coinEarnings(page: p.currentPage + 1);
+      if (!mounted) return;
+      setState(() {
+        _items.addAll(res.items);
+        _pagination = res.pagination;
+      });
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  IconData _getEarningIcon(String sourceType) {
+    final t = sourceType.toLowerCase();
+    if (t.contains('check')) return Icons.event_available_rounded;
+    if (t.contains('minute') || t.contains('watch')) return Icons.play_circle_outline_rounded;
+    if (t.contains('task')) return Icons.task_alt_rounded;
+    if (t.contains('drama')) return Icons.movie_outlined;
+    return Icons.monetization_on_outlined;
+  }
+
+  String _formatSourceLabel(String sourceType) {
+    final t = sourceType.toLowerCase();
+    if (t.contains('checkin') || t.contains('check_in')) return 'Daily Check-in';
+    if (t.contains('minute') || t.contains('watch')) return 'Reward Tonton 1 Menit';
+    if (t.contains('task')) return 'Task Reward';
+    if (t.contains('drama')) return 'Reward Drama';
+    return sourceType.isEmpty ? 'Pendapatan Koin' : sourceType;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading && _items.isEmpty) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF71717A), strokeWidth: 2));
+    }
+    if (_items.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _loadData,
+        color: const Color(0xFFA1A1AA),
+        backgroundColor: const Color(0xFF18191D),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(24, 60, 24, 40),
+          children: [
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF16171B),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF26282E)),
+                    ),
+                    child: const Center(child: Icon(Icons.savings_outlined, size: 28, color: Color(0xFF71717A))),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Belum ada riwayat pendapatan', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 15, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  const Text('Pendapatan dari check-in, task, drama, dan tonton 1 menit akan tampil di sini.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF71717A), fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      color: const Color(0xFFA1A1AA),
+      backgroundColor: const Color(0xFF18191D),
+      child: ListView.builder(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
+        itemCount: _items.length,
+        itemBuilder: (context, index) {
+          final item = _items[index];
+          final dt = item.createdAt;
+          final dateStr = dt == null ? '' : '${_formatDay(dt)} ${_formatTime(dt)}';
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131418),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF1E2026)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1C22),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF262830)),
+                  ),
+                  child: Center(child: Icon(_getEarningIcon(item.sourceType), size: 16, color: const Color(0xFF9E9EA7))),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_formatSourceLabel(item.sourceType), style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(dateStr, style: const TextStyle(color: Color(0xFF71717A), fontSize: 11)),
+                    ],
+                  ),
+                ),
+                Text(
+                  '+${item.coins} Koin',
+                  style: const TextStyle(color: Color(0xFF4ADE80), fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ==========================================
+// TAB 3: RIWAYAT KONVERSI KOIN
 // ==========================================
 class _ConversionsTabWidget extends ConsumerStatefulWidget {
   const _ConversionsTabWidget();
@@ -714,7 +906,7 @@ class _ConversionsTabWidgetState extends ConsumerState<_ConversionsTabWidget> {
 }
 
 // ==========================================
-// TAB 3: RIWAYAT PENARIKAN (WITHDRAW)
+// TAB 4: RIWAYAT PENARIKAN (WITHDRAW)
 // ==========================================
 class _WithdrawalsTabWidget extends ConsumerStatefulWidget {
   const _WithdrawalsTabWidget();
@@ -1258,7 +1450,7 @@ class _ErrorState extends StatelessWidget {
             t.t('request_failed'),
             style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w500),
           ),
-          const SizedBox(height: 14),
+      const SizedBox(height: 14),
           SizedBox(
             height: 38,
             width: double.infinity,
