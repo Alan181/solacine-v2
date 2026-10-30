@@ -89,6 +89,13 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   var _autoUnlockEnabled = false;
   final Set<int> _autoUnlockTriedEpisodes = <int>{};
   late final AnimationController _rewardShake;
+  
+  // TAMBAHAN: Controller progress untuk lingkaran reward 1 menit & variabel timer
+  late final AnimationController _rewardProgressController;
+  Timer? _rewardMinuteTimer;
+  int _currentSecondsWatched = 0;
+  var _isClaimingReward = false;
+
   var _rewardDismissed = false;
   late final AnimationController _guideShake;
   var _showSwipeGuide = false;
@@ -130,6 +137,14 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       setState(() => _showLikeBurst = false);
     });
     _rewardShake = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..repeat(reverse: true);
+    
+    // Inisialisasi controller progress bar lingkaran reward berdurasi 1 menit (60 detik)
+    _rewardProgressController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 60),
+    );
+    _startWatchRewardTimer();
+
     _guideShake = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat(reverse: true);
     _paywallAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 520));
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
@@ -161,6 +176,62 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     });
   }
 
+  void _startWatchRewardTimer() {
+    _rewardProgressController.repeat();
+
+    _rewardMinuteTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_rewardDismissed || !widget.isActive || _disposed) return;
+      
+      final p = _video;
+      if (p == null || !p.value.isInitialized || !p.value.isPlaying) return;
+
+      setState(() {
+        _currentSecondsWatched++;
+      });
+
+      if (_currentSecondsWatched >= 60) {
+        _currentSecondsWatched = 0;
+        _triggerClaimMinuteReward();
+      }
+    });
+  }
+
+  Future<void> _triggerClaimMinuteReward() async {
+    if (_isClaimingReward) return;
+    setState(() => _isClaimingReward = true);
+
+    try {
+      final data = _data;
+      if (data == null) return;
+      final seriesId = data.series.id;
+
+      final result = await ref.read(watchApiProvider).claimMinuteReward(seriesId: seriesId);
+      final earnedCoins = result['reward_coins'] ?? 10;
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Selamat! Anda mendapatkan +$earnedCoins koin dari menonton.'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        
+        try {
+          final fresh = await ref.read(authApiProvider).me();
+          await ref.read(authSessionProvider.notifier).setUser(fresh);
+        } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint('Gagal klaim reward menit: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isClaimingReward = false);
+      }
+    }
+  }
+
   ({String titleKey, String descKey}) _errorMessageFor(Object? error) => appUserErrorFor(error);
 
   @override
@@ -177,6 +248,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     _pageController.dispose();
     _likeBurst.dispose();
     _rewardShake.dispose();
+    _rewardProgressController.dispose();
+    _rewardMinuteTimer?.cancel();
     _guideShake.dispose();
     _paywallAnim.dispose();
     _autoHideControlsTimer?.cancel();
@@ -958,7 +1031,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     return out;
   }
 
-  List<Map<String, String>> _qualityOptions(WatchEpisodeDto ep) {
+  List> _qualityOptions(WatchEpisodeDto ep) {
     final items = <({String quality, String url, int rank})>[];
     for (final s in ep.sources) {
       final type = (s['source_type'] as String?)?.trim().toLowerCase() ?? '';
@@ -970,7 +1043,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       items.add((quality: q, url: u, rank: _qualityRank(q)));
     }
     items.sort((a, b) => b.rank.compareTo(a.rank));
-    final out = <Map<String, String>>[];
+    final out = >[];
     final seen = <String>{};
     for (final it in items) {
       if (seen.contains(it.quality)) continue;
@@ -1220,7 +1293,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
         bool hasTriggeredNext = false;
 
-        // --- MENGGUNAKAN LOGIKA PENGAMAN STABIL DARI FILE LAMA ---
         c.addListener(() {
           if (!mounted || _disposed || opId != _videoOpId) return;
           final value = c?.value;
@@ -1473,7 +1545,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   void _openMoreSheet(WatchEpisodeDto? ep) {
     final t = AppI18n.of(context);
     final e = ep;
-    final qualityOptions = e == null ? const <Map<String, String>>[] : _qualityOptions(e);
+    final qualityOptions = e == null ? const >[] : _qualityOptions(e);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xff0b0b0b),
@@ -2088,6 +2160,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                         likeBurstScale: _likeBurstScale,
                         likeBurstOpacity: _likeBurstOpacity,
                         rewardShakeAnimation: _rewardShake,
+                        progressAnimation: _rewardProgressController, // <-- DIKIRIM KE PAGE ITEM
                         rewardDismissed: _rewardDismissed,
                         showSwipeGuide: _showSwipeGuide,
                         guideShakeAnimation: _guideShake,
@@ -2126,8 +2199,21 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                             }
                           });
                         },
-                        onTapReward: () => _pauseVideoAndPush('/rewards'),
-                        onDismissReward: () => setState(() => _rewardDismissed = true),
+                        onTapReward: () {
+                          // Klik manual pada ikon koin reward
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Terus tonton video untuk mengklaim koin Anda!'),
+                              duration: Duration(seconds: 1),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        onDismissReward: () => setState(() {
+                          _rewardDismissed = true;
+                          _rewardMinuteTimer?.cancel();
+                          _rewardProgressController.stop();
+                        }),
                         onDismissSwipeGuide: _dismissSwipeGuide,
                         onRetryVideo: () => _startEpisodeNumber(epNum),
                         onOpenQualitySheet: (dynamic e) => _openQualitySheet(e as WatchEpisodeDto),
