@@ -1,5 +1,7 @@
-import 'package:dio/dio.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import 'package:video_player/video_player.dart';
 import '../../watch/data/watch_api.dart';
 
@@ -42,7 +44,8 @@ class ReelsPreloadManager {
 
     _inFlightSlugs.add(cleanSlug);
     try {
-      var data = _dataCache[cleanSlug];
+      // DIPERBAIKI: Menggunakan tipe WatchDataDto? agar sesuai dengan return type cache
+      WatchDataDto? data = _dataCache[cleanSlug];
       if (data == null) {
         data = await ref.read(watchApiProvider).show(
               slug: cleanSlug,
@@ -55,11 +58,12 @@ class ReelsPreloadManager {
         _dataCache[cleanSlug] = data;
       }
 
-      final ep = data.episodes.isNotEmpty ? data.episodes.first : null;
+      // DIPERBAIKI: Menggunakan operator null-safe ?.
+      final ep = data?.episodes.isNotEmpty == true ? data?.episodes.first : null;
       final videoUrl = ep?.videoUrl.trim() ?? '';
       if (videoUrl.isNotEmpty && !_controllerCache.containsKey(videoUrl)) {
         
-        // --- PENAMBAHAN FORMAT HINT UNTUK KONSISTENSI PEMUTARAN ---
+        // --- FORMAT HINT UNTUK KONSISTENSI PEMUTARAN ---
         final isHls = videoUrl.contains('.m3u8') || videoUrl.contains('/hls/');
         final isMp4 = videoUrl.toLowerCase().endsWith('.mp4') || videoUrl.contains('.mp4?');
 
