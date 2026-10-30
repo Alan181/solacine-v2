@@ -47,7 +47,6 @@ class _PurchaseHistoryScreenState extends ConsumerState<PurchaseHistoryScreen> w
   @override
   void initState() {
     super.initState();
-    // Diubah menjadi 4 tab (ditambah Pendapatan)
     _tabController = TabController(length: 4, vsync: this);
   }
 
@@ -548,7 +547,7 @@ class _OrdersTabWidgetState extends ConsumerState<_OrdersTabWidget> {
 }
 
 // ==========================================
-// TAB 2: PENDAPATAN KOIN (EARNINGS) - FIXED with coinTransactions
+// TAB 2: PENDAPATAN KOIN (EARNINGS)
 // ==========================================
 class _EarningsTabWidget extends ConsumerStatefulWidget {
   const _EarningsTabWidget();
@@ -1409,7 +1408,7 @@ String _providerLabel(AppI18n t, String provider) {
       return t.t('paypal');
     case 'flutterwave':
       return t.t('flutterwave');
-    case 'razorpay':
+    case 'razorpack':
       return t.t('razorpay');
     case 'xendit':
       return 'Xendit';
@@ -1443,7 +1442,6 @@ class _ErrorState extends StatelessWidget {
         border: Border.all(color: const Color(0xFF26282E)),
       ),
       child: Column(
-        details: [],
         children: [
           const Icon(Icons.cloud_off_rounded, size: 30, color: Color(0xFF71717A)),
           const SizedBox(height: 10),
