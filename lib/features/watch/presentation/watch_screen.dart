@@ -179,13 +179,21 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   }
 
   void _startWatchRewardTimer() {
-    _rewardProgressController.repeat();
-
     _rewardMinuteTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_rewardDismissed || !widget.isActive || _disposed) return;
       
       final p = _video;
-      if (p == null || !p.value.isInitialized || !p.value.isPlaying) return;
+      // DIPERBAIKI: Cek apakah video null, belum initialized, tidak playing, atau sedang buffering/loading
+      if (p == null || !p.value.isInitialized || !p.value.isPlaying || p.value.isBuffering) {
+        if (_rewardProgressController.isAnimating) {
+          _rewardProgressController.stop();
+        }
+        return;
+      }
+
+      if (!_rewardProgressController.isAnimating) {
+        _rewardProgressController.repeat();
+      }
 
       setState(() {
         _currentSecondsWatched++;
@@ -208,14 +216,14 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       final seriesId = data.series.id;
 
       final result = await ref.read(watchApiProvider).claimMinuteReward(seriesId: seriesId);
-      final earnedCoins = result['reward_coins'] ?? 10;
+      final earnedCoins = (result is Map ? result['reward_coins'] : null) ?? 10;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Selamat! Anda mendapatkan +$earnedCoins koin dari menonton.'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -665,6 +673,14 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     
     if (_lastProcessedEpisode == targetEpisodeNumber) return;
     _lastProcessedEpisode = targetEpisodeNumber;
+
+    // DIPERBAIKI: Reset total detik tonton setiap kali berpindah episode
+    setState(() {
+      _currentSecondsWatched = 0;
+      if (_rewardProgressController.isAnimating) {
+        _rewardProgressController.stop();
+      }
+    });
 
     final idx = targetEpisodeNumber - 1;
     if (mounted && _index != idx) {
@@ -2202,7 +2218,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                           });
                         },
                         onTapReward: () {
-                          // Klik manual pada ikon koin reward
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Terus tonton video untuk mengklaim koin Anda!'),
