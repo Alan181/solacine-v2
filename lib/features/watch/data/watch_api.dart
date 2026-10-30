@@ -82,7 +82,7 @@ class WatchEpisodeDto {
   final bool isFree;
   final bool isUnlocked;
   final String videoUrl;
-  final List> sources;
+  final List<Map<String, dynamic>> sources;
 
   factory WatchEpisodeDto.fromJson(Map<String, dynamic> json) {
     final rawSources = json['sources'];
@@ -93,7 +93,7 @@ class WatchEpisodeDto {
       isFree: json['is_free'] == true,
       isUnlocked: json['is_unlocked'] == true,
       videoUrl: (json['video_url'] as String?) ?? '',
-      sources: list.whereType().map((e) => e.cast<String, dynamic>()).toList(growable: false),
+      sources: list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList(growable: false),
     );
   }
 }
@@ -153,7 +153,7 @@ class WatchDataDto {
     final active = (json['active_episode'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};
     return WatchDataDto(
       series: WatchSeriesDto.fromJson((json['series'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{}),
-      episodes: list.whereType().map((e) => WatchEpisodeDto.fromJson(e.cast<String, dynamic>())).toList(growable: false),
+      episodes: list.whereType<Map>().map((e) => WatchEpisodeDto.fromJson(e.cast<String, dynamic>())).toList(growable: false),
       episodesPage: (json['episodes_page'] as num?)?.toInt() ?? 1,
       episodesPerPage: (json['episodes_per_page'] as num?)?.toInt() ?? 0,
       episodesTotal: (json['episodes_total'] as num?)?.toInt() ?? 0,
@@ -194,7 +194,7 @@ class WatchApi {
     if (episodeNumber != null) qp['episode'] = episodeNumber;
     if (episodesPage != null) qp['episodes_page'] = episodesPage;
     if (episodesPerPage != null) qp['episodes_per_page'] = episodesPerPage;
-    final res = await _dio.get>(
+    final res = await _dio.get<Map<String, dynamic>>(
       '/v1/watch/$slug',
       queryParameters: qp.isEmpty ? null : qp,
       options: options,
@@ -207,8 +207,8 @@ class WatchApi {
     return WatchDataDto.fromJson(data);
   }
 
-  Future> toggleLike({required int seriesId}) async {
-    final res = await _dio.post>('/v1/series/$seriesId/like');
+  Future<Map<String, dynamic>> toggleLike({required int seriesId}) async {
+    final res = await _dio.post<Map<String, dynamic>>('/v1/series/$seriesId/like');
     final map = res.data ?? const <String, dynamic>{};
     if (map['status'] != true) {
       throw Exception((map['message'] as String?) ?? 'Request failed');
@@ -218,7 +218,7 @@ class WatchApi {
   }
 
   Future<void> unlockEpisode({required int episodeId, required String method}) async {
-    final res = await _dio.post>(
+    final res = await _dio.post<Map<String, dynamic>>(
       '/v1/episodes/$episodeId/unlock',
       data: {'method': method},
     );
@@ -230,7 +230,7 @@ class WatchApi {
 
   Future<RandomSeriesDto?> getRandomSeries({required String currentSlug}) async {
     try {
-      final res = await _dio.get>(
+      final res = await _dio.get<Map<String, dynamic>>(
         '/v1/series/random',
         queryParameters: {'exclude': currentSlug},
       );
@@ -244,8 +244,8 @@ class WatchApi {
     }
   }
 
-  Future> claimMinuteReward({required int seriesId}) async {
-    final res = await _dio.post>(
+  Future<Map<String, dynamic>> claimMinuteReward({required int seriesId}) async {
+    final res = await _dio.post<Map<String, dynamic>>(
       '/v1/watch/claim-minute-reward',
       data: {'series_id': seriesId},
     );
