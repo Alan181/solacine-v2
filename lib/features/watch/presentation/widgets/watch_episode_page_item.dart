@@ -48,6 +48,7 @@ class WatchEpisodePageItem extends StatelessWidget {
     required this.likeBurstScale,
     required this.likeBurstOpacity,
     required this.rewardShakeAnimation,
+    required this.progressAnimation, // <-- TAMBAHAN BARU
     required this.rewardDismissed,
     required this.showSwipeGuide,
     required this.guideShakeAnimation,
@@ -122,6 +123,7 @@ class WatchEpisodePageItem extends StatelessWidget {
   final double Function(double t) likeBurstScale;
   final double Function(double t) likeBurstOpacity;
   final Animation<double> rewardShakeAnimation;
+  final Animation<double> progressAnimation; // <-- TAMBAHAN BARU
   final bool rewardDismissed;
   final bool showSwipeGuide;
   final Animation<double> guideShakeAnimation;
@@ -217,6 +219,7 @@ class WatchEpisodePageItem extends StatelessWidget {
             WatchRewardButton(
               topPad: topPad,
               rewardShakeAnimation: rewardShakeAnimation,
+              progressAnimation: progressAnimation, // <-- DIKIRIM KE BUTTON
               rewardDismissed: rewardDismissed,
               onTapReward: onTapReward,
               onDismiss: onDismissReward,
