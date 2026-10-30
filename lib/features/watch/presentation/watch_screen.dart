@@ -2178,7 +2178,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                         likeBurstScale: _likeBurstScale,
                         likeBurstOpacity: _likeBurstOpacity,
                         rewardShakeAnimation: _rewardShake,
-                        progressAnimation: widget.reelsPreview ? null : _rewardProgressController,
+                        progressAnimation: widget.reelsPreview ? const AlwaysStoppedAnimation<double>(0.0) : (_rewardProgressController as Animation<double>),
                         rewardDismissed: widget.reelsPreview || _rewardDismissed,
                         showSwipeGuide: _showSwipeGuide,
                         guideShakeAnimation: _guideShake,
