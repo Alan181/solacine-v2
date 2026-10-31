@@ -590,6 +590,7 @@ class _EarningsTabWidgetState extends ConsumerState<_EarningsTabWidget> {
       if (!mounted) return;
       setState(() {
         _items.clear();
+        // HANYA ambil 'credit' dan pastikan BUKAN 'purchase'
         _items.addAll(
           res.items.where((tx) => 
             tx.type.toLowerCase() == 'credit' && 
@@ -630,7 +631,7 @@ class _EarningsTabWidgetState extends ConsumerState<_EarningsTabWidget> {
 
   IconData _getEarningIcon(String reason) {
     final t = reason.toLowerCase();
-    if (t.contains('check') || t == 'reward') return Icons.event_available_rounded;
+    if (t.contains('check')) return Icons.event_available_rounded;
     if (t.contains('minute') || t.contains('watch')) return Icons.play_circle_outline_rounded;
     if (t.contains('task')) return Icons.task_alt_rounded;
     if (t.contains('drama')) return Icons.movie_outlined;
@@ -639,11 +640,11 @@ class _EarningsTabWidgetState extends ConsumerState<_EarningsTabWidget> {
 
   String _formatSourceLabel(String reason) {
     final t = reason.toLowerCase();
-    if (t.contains('checkin') || t.contains('check_in') || t.contains('reward') || t == 'reward') return 'Daily Check-in';
+    if (t.contains('checkin') || t.contains('check_in')) return 'Daily Check-in';
     if (t.contains('minute') || t.contains('watch')) return 'Reward Tonton 1 Menit';
     if (t.contains('task')) return 'Task Reward';
     if (t.contains('drama')) return 'Reward Drama';
-    return reason.isEmpty ? 'Pendapatan Koin' : (reason[0].toUpperCase() + reason.substring(1));
+    return reason.isEmpty ? 'Pendapatan Koin' : reason;
   }
 
   @override
