@@ -364,7 +364,7 @@ class PaymentMethodsSheet extends StatelessWidget {
                             'razorpay' => 'assets/images/payments/razorpay.png',
                             'xendit' => 'assets/images/daily_checkin_top_ic.png',
                             'duitku' => 'assets/images/payments/duitku.png',
-                            'midtrans' => 'assets/images/daily_checkin_top_ic.png', // Menggunakan aset yang tersedia
+                            'midtrans' => 'assets/images/payments/midtrans.png', // Menggunakan aset yang tersedia
                             _ => null,
                           };
                           final subtitle = switch (p) {
