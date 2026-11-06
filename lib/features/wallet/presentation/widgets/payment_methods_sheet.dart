@@ -18,7 +18,9 @@ String providerLabel(AppI18n t, String provider) {
     case 'duitku':
       return 'Duitku';
     case 'midtrans':
-      return 'Midtrans'; // <- Ditambahkan agar label Midtrans muncul rapi
+      return 'Midtrans';
+    case 'ipaymu':
+      return 'iPaymu';
     default:
       return provider;
   }
@@ -53,8 +55,8 @@ class PaymentMethodsSheet extends StatelessWidget {
     required bool isIOS,
   }) {
     final webGateway = <String>[];
-    // Menambahkan 'midtrans' ke dalam daftar web gateway yang didukung
-    for (final p in const ['stripe', 'paypal', 'flutterwave', 'razorpay', 'xendit', 'duitku', 'midtrans']) {
+    // Menambahkan 'ipaymu' ke dalam daftar web gateway yang didukung
+    for (final p in const ['stripe', 'paypal', 'flutterwave', 'razorpay', 'xendit', 'duitku', 'midtrans', 'ipaymu']) {
       if (enabledProviders[p] == true) webGateway.add(p);
     }
 
@@ -354,7 +356,7 @@ class PaymentMethodsSheet extends StatelessWidget {
                           onTap: () => Navigator.of(context).pop('app_store'),
                         ),
 
-                      // ── Web Gateways: Stripe / Paypal / Flutterwave / Razorpay / Xendit / Duitku / Midtrans
+                      // ── Web Gateways: Stripe / Paypal / Flutterwave / Razorpay / Xendit / Duitku / Midtrans / iPaymu
                       if (hasWebGateways)
                         ...enabledGateway.map((p) {
                           final icon = switch (p) {
@@ -362,9 +364,10 @@ class PaymentMethodsSheet extends StatelessWidget {
                             'paypal' => 'assets/images/payments/paypal.png',
                             'flutterwave' => 'assets/images/payments/flutterwave.png',
                             'razorpay' => 'assets/images/payments/razorpay.png',
-                            'xendit' => 'assets/images/daily_checkin_top_ic.png',
+                            'xendit' => 'assets/images/payments/xendit.png',
                             'duitku' => 'assets/images/payments/duitku.png',
-                            'midtrans' => 'assets/images/payments/midtrans.png', // Menggunakan aset yang tersedia
+                            'midtrans' => 'assets/images/payments/midtrans.png',
+                            'ipaymu' => 'assets/images/payments/ipaymu.png',
                             _ => null,
                           };
                           final subtitle = switch (p) {
@@ -381,7 +384,7 @@ class PaymentMethodsSheet extends StatelessWidget {
                                 ? 'البطاقات والتحويل البنكي'
                                 : 'Cards & local payments',
                             'xendit' => isArabic
-                                ? 'QRIS، الحسابات الافتراضية والمحافظ الإلكترونية'
+                                ? 'QRIS، الحسابات الافتراضية والمافظ الإلكترونية'
                                 : 'QRIS, Virtual Accounts & E-Wallets',
                             'duitku' => isArabic
                                 ? 'QRIS، الحسابات الافتراضية والتحويل'
@@ -389,13 +392,16 @@ class PaymentMethodsSheet extends StatelessWidget {
                             'midtrans' => isArabic
                                 ? 'QRIS، جواتو، المحافظ، وجميع طرق الدفع في إندونيسيا'
                                 : 'QRIS, GoPay, Virtual Accounts & Bank Transfer',
+                            'ipaymu' => isArabic
+                                ? 'QRIS، الحسابات الافتراضية والبطاقات وإندوماريت'
+                                : 'QRIS, Virtual Accounts, Cards & Convenience Stores',
                             _ => isArabic ? 'دفع آمن ومعتمد' : t.t('secure_payment'),
                           };
                           return WalletPaymentMethodTile(
                             title: providerLabel(t, p),
                             subtitle: subtitle,
                             iconAsset: icon,
-                            badgeText: (p == 'stripe' || p == 'paypal' || p == 'xendit' || p == 'duitku' || p == 'midtrans')
+                            badgeText: (p == 'stripe' || p == 'paypal' || p == 'xendit' || p == 'duitku' || p == 'midtrans' || p == 'ipaymu')
                                 ? (isArabic ? 'آمن' : 'Secure')
                                 : null,
                             onTap: () => Navigator.of(context).pop(p),
