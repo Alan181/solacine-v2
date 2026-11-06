@@ -8,7 +8,6 @@ import '../../app/i18n.dart';
 import '../../shared/widgets/app_bottom_nav_bar.dart';
 import '../../shared/widgets/app_loading_indicator.dart';
 import '../bootstrap/application/bootstrap_controller.dart';
-import '../ads/presentation/ad_banner.dart';
 import 'application/home_controller.dart';
 import 'presentation/series_grid_view.dart';
 import 'presentation/series_ranking_list_view.dart';
@@ -147,18 +146,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ),
           ],
         ),
-        bottomNavigationBar: Column(
+        bottomNavigationBar: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              color: const Color(0xff050505),
-              alignment: Alignment.center,
-              child: const SafeArea(
-                top: false,
-                child: AdBanner(),
-              ),
-            ),
-            const AppBottomNavBar(currentIndex: 0),
+            AppBottomNavBar(currentIndex: 0),
           ],
         ),
       ),
