@@ -170,9 +170,9 @@ class _WalletScreenState extends ConsumerState<WalletScreen> with WidgetsBinding
       return;
     }
 
-    // Ditambahkan 'xendit', 'duitku', dan 'midtrans' agar terdeteksi dengan baik
+    // Ditambahkan 'xendit', 'duitku', 'midtrans', dan 'ipaymu' agar terdeteksi dengan baik
     final enabledGateway = <String>[];
-    for (final p in const ['stripe', 'paypal', 'flutterwave', 'razorpay', 'xendit', 'duitku', 'midtrans']) {
+    for (final p in const ['stripe', 'paypal', 'flutterwave', 'razorpay', 'xendit', 'duitku', 'midtrans', 'ipaymu']) {
       if (_providers[p] == true) enabledGateway.add(p);
     }
 
