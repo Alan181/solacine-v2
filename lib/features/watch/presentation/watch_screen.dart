@@ -1407,7 +1407,6 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
       _videoLoading = false;
       _videoError = realErrorText;
     });
-    // Baris SnackBar merah (toast error) telah dihapus dari sini agar layar bersih.
   }
 
   void _triggerPreloadNextEpisodes(int currentEpNum) {
