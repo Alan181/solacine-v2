@@ -3,6 +3,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/data/dio_provider.dart';
 
+class ActorDto {
+  const ActorDto({
+    required this.id,
+    required this.name,
+    required this.roleType,
+    required this.photoUrl,
+  });
+
+  final int id;
+  final String name;
+  final String roleType;
+  final String photoUrl;
+
+  factory ActorDto.fromJson(Map<String, dynamic> json) {
+    return ActorDto(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: (json['name'] as String?) ?? '',
+      roleType: (json['role_type'] as String?) ?? '',
+      photoUrl: (json['photo_url'] as String?) ?? '',
+    );
+  }
+}
+
 class WatchSeriesDto {
   const WatchSeriesDto({
     required this.id,
@@ -22,6 +45,7 @@ class WatchSeriesDto {
     required this.isLiked,
     required this.isFavorited,
     required this.lastWatchedEpisodeNumber,
+    required this.casts,
   });
 
   final int id;
@@ -41,10 +65,39 @@ class WatchSeriesDto {
   final bool isLiked;
   final bool isFavorited;
   final int lastWatchedEpisodeNumber;
+  final List<ActorDto> casts;
+
+  // Getter otomatis untuk Aktor Pria Utama
+  ActorDto? get maleLead {
+    try {
+      return casts.firstWhere(
+        (c) => c.roleType == 'main_male_lead' || c.roleType == 'male_lead',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Getter otomatis untuk Aktris Wanita Utama
+  ActorDto? get femaleLead {
+    try {
+      return casts.firstWhere(
+        (c) => c.roleType == 'main_female_lead' || c.roleType == 'female_lead',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
 
   factory WatchSeriesDto.fromJson(Map<String, dynamic> json) {
     final rawGenres = json['genres'];
     final genres = rawGenres is List ? rawGenres.whereType<String>().toList(growable: false) : const <String>[];
+    
+    final rawCasts = json['casts'];
+    final castsList = rawCasts is List 
+        ? rawCasts.whereType().map((e) => ActorDto.fromJson(e.cast<String, dynamic>())).toList(growable: false)
+        : const <ActorDto>[];
+
     return WatchSeriesDto(
       id: (json['id'] as num?)?.toInt() ?? 0,
       slug: (json['slug'] as String?) ?? '',
@@ -63,6 +116,7 @@ class WatchSeriesDto {
       isLiked: json['is_liked'] == true,
       isFavorited: json['is_favorited'] == true,
       lastWatchedEpisodeNumber: (json['last_watched_episode_number'] as num?)?.toInt() ?? 1,
+      casts: castsList,
     );
   }
 }
@@ -82,7 +136,7 @@ class WatchEpisodeDto {
   final bool isFree;
   final bool isUnlocked;
   final String videoUrl;
-  final List<Map<String, dynamic>> sources;
+  final List> sources;
 
   factory WatchEpisodeDto.fromJson(Map<String, dynamic> json) {
     final rawSources = json['sources'];
@@ -93,7 +147,7 @@ class WatchEpisodeDto {
       isFree: json['is_free'] == true,
       isUnlocked: json['is_unlocked'] == true,
       videoUrl: (json['video_url'] as String?) ?? '',
-      sources: list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList(growable: false),
+      sources: list.whereType().map((e) => e.cast<String, dynamic>()).toList(growable: false),
     );
   }
 }
@@ -153,7 +207,7 @@ class WatchDataDto {
     final active = (json['active_episode'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};
     return WatchDataDto(
       series: WatchSeriesDto.fromJson((json['series'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{}),
-      episodes: list.whereType<Map>().map((e) => WatchEpisodeDto.fromJson(e.cast<String, dynamic>())).toList(growable: false),
+      episodes: list.whereType().map((e) => WatchEpisodeDto.fromJson(e.cast<String, dynamic>())).toList(growable: false),
       episodesPage: (json['episodes_page'] as num?)?.toInt() ?? 1,
       episodesPerPage: (json['episodes_per_page'] as num?)?.toInt() ?? 0,
       episodesTotal: (json['episodes_total'] as num?)?.toInt() ?? 0,
@@ -194,7 +248,7 @@ class WatchApi {
     if (episodeNumber != null) qp['episode'] = episodeNumber;
     if (episodesPage != null) qp['episodes_page'] = episodesPage;
     if (episodesPerPage != null) qp['episodes_per_page'] = episodesPerPage;
-    final res = await _dio.get<Map<String, dynamic>>(
+    final res = await _dio.get>(
       '/v1/watch/$slug',
       queryParameters: qp.isEmpty ? null : qp,
       options: options,
@@ -207,8 +261,8 @@ class WatchApi {
     return WatchDataDto.fromJson(data);
   }
 
-  Future<Map<String, dynamic>> toggleLike({required int seriesId}) async {
-    final res = await _dio.post<Map<String, dynamic>>('/v1/series/$seriesId/like');
+  Future> toggleLike({required int seriesId}) async {
+    final res = await _dio.post>('/v1/series/$seriesId/like');
     final map = res.data ?? const <String, dynamic>{};
     if (map['status'] != true) {
       throw Exception((map['message'] as String?) ?? 'Request failed');
@@ -218,7 +272,7 @@ class WatchApi {
   }
 
   Future<void> unlockEpisode({required int episodeId, required String method}) async {
-    final res = await _dio.post<Map<String, dynamic>>(
+    final res = await _dio.post>(
       '/v1/episodes/$episodeId/unlock',
       data: {'method': method},
     );
@@ -230,7 +284,7 @@ class WatchApi {
 
   Future<RandomSeriesDto?> getRandomSeries({required String currentSlug}) async {
     try {
-      final res = await _dio.get<Map<String, dynamic>>(
+      final res = await _dio.get>(
         '/v1/series/random',
         queryParameters: {'exclude': currentSlug},
       );
@@ -244,8 +298,8 @@ class WatchApi {
     }
   }
 
-  Future<Map<String, dynamic>> claimMinuteReward({required int seriesId}) async {
-    final res = await _dio.post<Map<String, dynamic>>(
+  Future> claimMinuteReward({required int seriesId}) async {
+    final res = await _dio.post>(
       '/v1/watch/claim-minute-reward',
       data: {'series_id': seriesId},
     );
