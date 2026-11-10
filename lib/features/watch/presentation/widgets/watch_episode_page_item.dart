@@ -10,6 +10,7 @@ import 'watch_title_info_section.dart';
 import 'watch_swipe_guide_overlay.dart';
 import 'watch_paywall_popup.dart';
 import 'watch_vip_upsell_popup.dart';
+import '../data/watch_api.dart'; // Pastikan path import WatchSeriesDto sesuai
 
 class WatchEpisodePageItem extends StatelessWidget {
   const WatchEpisodePageItem({
@@ -96,7 +97,7 @@ class WatchEpisodePageItem extends StatelessWidget {
   final bool ready;
   final bool isUnlocked;
   final bool hasVideo;
-  final dynamic series;
+  final WatchSeriesDto series; // Menggunakan tipe WatchSeriesDto yang sudah ada model casts-nya
   final dynamic cfg;
   final bool coinSystemEnabled;
   final bool allowVipUnlock;
@@ -247,6 +248,7 @@ class WatchEpisodePageItem extends StatelessWidget {
               onOpenSeriesInfo: onOpenSeriesInfo,
               onWatchNow: onWatchNow,
               controlsVisible: controlsVisible,
+              series: series, // <-- DIKIRIM KE WatchTitleInfoSection AGAR AKTOR BISA DITAMPILKAN
             ),
           ],
           WatchSwipeGuideOverlay(
