@@ -11,8 +11,6 @@ on:
         options:
           - apk
           - aab
-          - apks
-          - xapk
 
 jobs:
   build:
@@ -98,18 +96,6 @@ jobs:
         if: github.event.inputs.build_target == 'aab'
         run: flutter build appbundle
 
-      # --- BUILD APKS (Split APKs / Berdasarkan Arsitektur) ---
-      - name: Build APKS
-        if: github.event.inputs.build_target == 'apks'
-        run: flutter build apks
-
-      # --- BUILD XAPK ---
-      - name: Build XAPK (via APKS)
-        if: github.event.inputs.build_target == 'xapk'
-        run: |
-          flutter build apks
-          mv build/app/outputs/bundle/release/app-release.apks build/app/outputs/bundle/release/app-release.xapk
-
       # --- UPLOAD ARTIFACT APK STANDARD ---
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -125,19 +111,3 @@ jobs:
         with:
           name: release-aab
           path: build/app/outputs/bundle/release/app-release.aab
-
-      # --- UPLOAD ARTIFACT APKS ---
-      - name: Upload APKS Artifact
-        uses: actions/upload-artifact@v4
-        if: github.event.inputs.build_target == 'apks'
-        with:
-          name: release-apks
-          path: build/app/outputs/bundle/release/app-release.apks
-
-      # --- UPLOAD ARTIFACT XAPK ---
-      - name: Upload XAPK Artifact
-        uses: actions/upload-artifact@v4
-        if: github.event.inputs.build_target == 'xapk'
-        with:
-          name: release-xapk
-          path: build/app/outputs/bundle/release/app-release.xapk
