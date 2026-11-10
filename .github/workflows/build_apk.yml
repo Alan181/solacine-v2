@@ -91,23 +91,23 @@ jobs:
       # --- BUILD APK STANDARD ---
       - name: Build APK Standar
         if: github.event.inputs.build_target == 'apk'
-        run: flutter build apk --no-tree-shake-icons
+        run: flutter build apk
 
       # --- BUILD AAB (Android App Bundle) ---
       - name: Build AAB
         if: github.event.inputs.build_target == 'aab'
-        run: flutter build appbundle --no-tree-shake-icons
+        run: flutter build appbundle
 
       # --- BUILD APKS (Split APKs / Berdasarkan Arsitektur) ---
       - name: Build APKS
         if: github.event.inputs.build_target == 'apks'
-        run: flutter build apks --no-tree-shake-icons
+        run: flutter build apks
 
       # --- BUILD XAPK ---
       - name: Build XAPK (via APKS)
         if: github.event.inputs.build_target == 'xapk'
         run: |
-          flutter build apks --no-tree-shake-icons
+          flutter build apks
           mv build/app/outputs/bundle/release/app-release.apks build/app/outputs/bundle/release/app-release.xapk
 
       # --- UPLOAD ARTIFACT APK STANDARD ---
