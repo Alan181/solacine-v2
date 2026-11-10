@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:solacine_mobile/app/i18n.dart';
+import '../../../../shared/widgets/app_cached_image.dart'; // Sesuaikan path import AppCachedImage Anda jika perlu
+import '../../data/watch_api.dart'; // Untuk mengakses WatchSeriesDto & ActorDto
 
 class WatchTitleInfoSection extends StatelessWidget {
   const WatchTitleInfoSection({
@@ -14,6 +16,7 @@ class WatchTitleInfoSection extends StatelessWidget {
     required this.onOpenSeriesInfo,
     required this.onWatchNow,
     required this.controlsVisible,
+    required this.series, // <-- Parameter series ditambahkan
   });
 
   final double bottomPad;
@@ -26,10 +29,58 @@ class WatchTitleInfoSection extends StatelessWidget {
   final VoidCallback onOpenSeriesInfo;
   final VoidCallback onWatchNow;
   final bool controlsVisible;
+  final WatchSeriesDto series; // <-- Objek series untuk mengambil data casts/maleLead/femaleLead
+
+  // Widget helper untuk merender pill foto bulat & nama aktor/aktris
+  Widget _buildActorPill(ActorDto actor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: AppCachedImage(
+                imageUrl: actor.photoUrl,
+                fit: BoxFit.cover,
+                errorWidget: (_) => Container(color: Colors.white.withValues(alpha: 0.2)),
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 90),
+            child: Text(
+              actor.name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = AppI18n.of(context);
+    final male = series.maleLead;
+    final female = series.femaleLead;
+    final hasActors = (male != null && male.name.isNotEmpty) || (female != null && female.name.isNotEmpty);
+
     if (reelsPreview) {
       // Reels Mode: Title in white with arrow only, 2-line grey synopsis, wide grey "Watch Now" button.
       // Controls in Reels NEVER disappear!
@@ -72,6 +123,20 @@ class WatchTitleInfoSection extends StatelessWidget {
                   ],
                 ),
               ),
+
+              // Pill Aktor/Aktris di bawah judul (Mode Reels - rata kanan)
+              if (hasActors) ...[
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    if (female != null && female.name.isNotEmpty) _buildActorPill(female),
+                    if (male != null && male.name.isNotEmpty) _buildActorPill(male),
+                  ],
+                ),
+              ],
 
               // Synopsis: 2 lines max, in grey
               if (synopsis.trim().isNotEmpty) ...[
@@ -211,6 +276,21 @@ class WatchTitleInfoSection extends StatelessWidget {
                   ],
                 ),
               ),
+
+              // Pill Aktor/Aktris di bawah judul (Full Watch Mode - rata kiri)
+              if (hasActors) ...[
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  alignment: WrapAlignment.start,
+                  children: [
+                    if (female != null && female.name.isNotEmpty) _buildActorPill(female),
+                    if (male != null && male.name.isNotEmpty) _buildActorPill(male),
+                  ],
+                ),
+              ],
+
               if (synopsis.trim().isNotEmpty) ...[
                 const SizedBox(height: 5),
                 Text(
