@@ -46,8 +46,8 @@ class WatchTitleInfoSection extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: SizedBox(
-              width: 18,
-              height: 18,
+              width: 22,
+              height: 22,
               child: AppCachedImage(
                 imageUrl: actor.photoUrl,
                 fit: BoxFit.cover,
