@@ -10,7 +10,7 @@ import 'watch_title_info_section.dart';
 import 'watch_swipe_guide_overlay.dart';
 import 'watch_paywall_popup.dart';
 import 'watch_vip_upsell_popup.dart';
-import '../data/watch_api.dart'; // Pastikan path import WatchSeriesDto sesuai
+import '../../data/watch_api.dart';
 
 class WatchEpisodePageItem extends StatelessWidget {
   const WatchEpisodePageItem({
