@@ -356,6 +356,13 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
   }
 
   void _onScreenTap() {
+    // Jika kontrol tersembunyi, ketukan pertama HANYA memunculkan kontrol (TIDAK pause/play video)
+    if (!_controlsVisible) {
+      _showControls(scheduleAutoHide: true);
+      return;
+    }
+
+    // Jika kontrol sudah muncul, ketukan berikutnya baru berfungsi untuk Play/Pause video
     final p = _video;
     if (p != null && p.value.isInitialized) {
       if (p.value.isPlaying) {
