@@ -37,7 +37,7 @@ class WatchTitleInfoSection extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
       ),
       child: Row(
@@ -46,8 +46,8 @@ class WatchTitleInfoSection extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: SizedBox(
-              width: 22,
-              height: 22,
+              width: 16,
+              height: 16,
               child: AppCachedImage(
                 imageUrl: actor.photoUrl,
                 fit: BoxFit.cover,
@@ -62,7 +62,7 @@ class WatchTitleInfoSection extends StatelessWidget {
               actor.name,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w500,
               ),
               maxLines: 1,
@@ -276,20 +276,6 @@ class WatchTitleInfoSection extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // Pill Aktor/Aktris di bawah judul (Full Watch Mode - rata kiri)
-              if (hasActors) ...[
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  alignment: WrapAlignment.start,
-                  children: [
-                    if (female != null && female.name.isNotEmpty) _buildActorPill(female),
-                    if (male != null && male.name.isNotEmpty) _buildActorPill(male),
-                  ],
-                ),
-              ],
 
               if (synopsis.trim().isNotEmpty) ...[
                 const SizedBox(height: 5),
