@@ -1659,6 +1659,8 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
     final series = data.series;
     final genresLine = series.genres.where((e) => e.trim().isNotEmpty).join(' • ');
     final ageRatingAsset = _ageRatingAsset(series.contentRating);
+    final casts = series.casts;
+
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xff0b0b0b),
@@ -1780,6 +1782,60 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                                         ),
                                       ],
                                     ),
+                                    
+                                    // --- PIL KOTAK PEMERAN (DI BAWAH VIEWS) ---
+                                    if (casts != null && casts.isNotEmpty) ...[
+                                      const SizedBox(height: 10),
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: casts.map((actor) {
+                                          return Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withValues(alpha: 0.45),
+                                              borderRadius: BorderRadius.circular(10), // Kotak dengan sudut melengkung tipis
+                                              border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                ClipRRect(
+                                                  borderRadius: BorderRadius.circular(3),
+                                                  child: SizedBox(
+                                                    width: 22,
+                                                    height: 22,
+                                                    child: AppCachedImage(
+                                                      imageUrl: actor.photoUrl ?? '',
+                                                      fit: BoxFit.cover,
+                                                      errorWidget: (_) => Container(
+                                                        color: Colors.white.withValues(alpha: 0.2),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                ConstrainedBox(
+                                                  constraints: const BoxConstraints(maxWidth: 80),
+                                                  child: Text(
+                                                    actor.name,
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ],
+                                    // ------------------------------------------
+
                                   ],
                                 ),
                               ),
