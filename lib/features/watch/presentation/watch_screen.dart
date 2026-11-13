@@ -1790,7 +1790,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                                       ],
                                     ),
                                     
-                                    // --- PIL KOTAK PEMERAN (DI BAWAH VIEWS) ---
+                                    // --- PIL KOTAK PEMERAN (FOTO BULAT 22x22, TEKS 11) ---
                                     if (casts != null && casts.isNotEmpty) ...[
                                       const SizedBox(height: 10),
                                       Wrap(
@@ -1801,14 +1801,14 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
                                             decoration: BoxDecoration(
                                               color: Colors.black.withValues(alpha: 0.45),
-                                              borderRadius: BorderRadius.circular(10), // Kotak dengan sudut melengkung tipis
+                                              borderRadius: BorderRadius.circular(5), // Background kotak melengkung tipis
                                               border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                                             ),
                                             child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 ClipRRect(
-                                                  borderRadius: BorderRadius.circular(3),
+                                                  borderRadius: BorderRadius.circular(999), // Diubah jadi 999 agar fotonya bulat sempurna
                                                   child: SizedBox(
                                                     width: 22,
                                                     height: 22,
@@ -1828,7 +1828,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                                                     actor.name,
                                                     style: const TextStyle(
                                                       color: Colors.white,
-                                                      fontSize: 11,
+                                                      fontSize: 10, // Ukuran teks 10
                                                       fontWeight: FontWeight.w500,
                                                     ),
                                                     maxLines: 1,
@@ -1841,7 +1841,7 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
                                         }).toList(),
                                       ),
                                     ],
-                                    // ------------------------------------------
+                                    // ----------------------------------------------------
 
                                   ],
                                 ),
