@@ -161,15 +161,17 @@ class WatchTopControlsBar extends StatelessWidget {
                   border: Border.all(color: Colors.white.withValues(alpha: 0.26), width: 0.9),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.all(3.0),
                   child: Image.asset(
                     'assets/images/watermark.png',
                     fit: BoxFit.contain,
+                    width: 32,
+                    height: 32,
                     errorBuilder: (context, error, stackTrace) {
                       return const Icon(
                         Icons.play_arrow_rounded,
                         color: Colors.white,
-                        size: 18,
+                        size: 20,
                       );
                     },
                   ),
