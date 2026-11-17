@@ -7,6 +7,7 @@ class AdsConfig {
     required this.applovin,
     required this.unity,
     required this.ironsource,
+    required this.startio,
     required this.vast,
   });
 
@@ -17,6 +18,7 @@ class AdsConfig {
   final AppLovinAdsConfig applovin;
   final UnityAdsConfig unity;
   final IronSourceAdsConfig ironsource;
+  final StartIoAdsConfig startio;
   final VastAdsConfig vast;
 
   static AdsConfig? fromAppConfig(Map<String, dynamic> data, {Map<String, dynamic> publicSettings = const <String, dynamic>{}}) {
@@ -32,6 +34,7 @@ class AdsConfig {
     final applovin = AppLovinAdsConfig.fromJson((ads['applovin'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{});
     final unity = UnityAdsConfig.fromJson((ads['unity'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{});
     final ironsource = IronSourceAdsConfig.fromJson((ads['ironsource'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{});
+    final startio = StartIoAdsConfig.fromJson((ads['startio'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{});
     final vast = VastAdsConfig.fromJson(
       (ads['vast'] as Map?)?.cast<String, dynamic>() ??
       (publicSettings['ads'] is Map ? ((publicSettings['ads'] as Map)['vast'] as Map?)?.cast<String, dynamic>() : null) ??
@@ -72,6 +75,10 @@ class AdsConfig {
           interstitialId: '',
           rewardedId: '',
         ),
+        startio: const StartIoAdsConfig(
+          enabled: false,
+          appId: '',
+        ),
         vast: const VastAdsConfig(
           enabled: false,
           url: '',
@@ -89,6 +96,7 @@ class AdsConfig {
       applovin: applovin,
       unity: unity,
       ironsource: ironsource,
+      startio: startio,
       vast: vast,
     );
   }
@@ -201,6 +209,7 @@ enum AdsNetwork {
   applovin,
   unity,
   ironsource,
+  startio,
 }
 
 enum MediationMode {
@@ -239,6 +248,7 @@ class MediationAdsConfig {
         'applovin' => AdsNetwork.applovin,
         'unity' => AdsNetwork.unity,
         'ironsource' => AdsNetwork.ironsource,
+        'startio' || 'startapp' => AdsNetwork.startio,
         _ => null,
       };
       if (key == null) continue;
@@ -386,6 +396,25 @@ class IronSourceAdsConfig {
       bannerId: (json['banner_id'] as String?)?.trim() ?? '',
       interstitialId: (json['interstitial_id'] as String?)?.trim() ?? '',
       rewardedId: (json['rewarded_id'] as String?)?.trim() ?? '',
+    );
+  }
+}
+
+class StartIoAdsConfig {
+  const StartIoAdsConfig({
+    required this.enabled,
+    required this.appId,
+  });
+
+  final bool enabled;
+  final String appId;
+
+  static StartIoAdsConfig fromJson(Map<String, dynamic> json) {
+    final statusRaw = (json['status'] as String?)?.trim().toLowerCase() ?? 'disabled';
+    final enabled = statusRaw == 'enabled' || json['enabled'] == true;
+    return StartIoAdsConfig(
+      enabled: enabled,
+      appId: (json['app_id'] as String?)?.trim() ?? '',
     );
   }
 }
