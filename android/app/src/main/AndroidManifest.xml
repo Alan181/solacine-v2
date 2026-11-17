@@ -45,6 +45,9 @@
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_stat_notify" />
         <meta-data
+            android:name="com.startapp.sdk.APPLICATION_ID"
+            android:value="210281314" />
+        <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-6896323482363893~6548611299" />
     </application>
