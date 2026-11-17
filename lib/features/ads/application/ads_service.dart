@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:applovin_max/applovin_max.dart' as applovin;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:startapp_sdk/startapp.dart';
 import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'package:unity_levelplay_mediation/unity_levelplay_mediation.dart';
 
@@ -27,6 +28,9 @@ class AdsService {
   bool _applovinInitialized = false;
   bool _unityInitialized = false;
   bool _ironsourceInitialized = false;
+  bool _startioInitialized = false;
+
+  final StartAppSdk _startAppSdk = StartAppSdk();
 
   final Map<String, bool> _unityLoaded = <String, bool>{};
   Completer<void>? _unityInitCompleter;
@@ -56,6 +60,7 @@ class AdsService {
       'unity' => AdsNetwork.unity,
       'ironsource' => AdsNetwork.ironsource,
       'levelplay' => AdsNetwork.ironsource,
+      'startio' || 'startapp' || 'start.io' => AdsNetwork.startio,
       _ => null,
     };
   }
@@ -80,6 +85,7 @@ class AdsService {
       AdsNetwork.applovin => cfg.applovin.enabled,
       AdsNetwork.unity => cfg.unity.enabled,
       AdsNetwork.ironsource => cfg.ironsource.enabled,
+      AdsNetwork.startio => cfg.startio.enabled,
     };
   }
 
@@ -90,6 +96,7 @@ class AdsService {
       AdsNetwork.applovin => _checkIds(cfg.applovin.sdkKey, kind == _AdKind.banner ? cfg.applovin.bannerId : kind == _AdKind.interstitial ? cfg.applovin.interstitialId : cfg.applovin.rewardedId, kind),
       AdsNetwork.unity => _checkIds(cfg.unity.gameId, kind == _AdKind.banner ? cfg.unity.bannerId : kind == _AdKind.interstitial ? cfg.unity.interstitialId : cfg.unity.rewardedId, kind),
       AdsNetwork.ironsource => _checkIds(cfg.ironsource.appKey, kind == _AdKind.banner ? cfg.ironsource.bannerId : kind == _AdKind.interstitial ? cfg.ironsource.interstitialId : cfg.ironsource.rewardedId, kind),
+      AdsNetwork.startio => (true, ''),
     };
   }
 
@@ -105,7 +112,7 @@ class AdsService {
   }
 
   AdsNetwork? _smartFallbackProvider(AdsConfig cfg, {_AdKind? forKind}) {
-    final candidates = <AdsNetwork>[AdsNetwork.unity, AdsNetwork.applovin, AdsNetwork.ironsource, AdsNetwork.admob];
+    final candidates = <AdsNetwork>[AdsNetwork.unity, AdsNetwork.applovin, AdsNetwork.ironsource, AdsNetwork.startio, AdsNetwork.admob];
     for (final n in candidates) {
       final (ok, _) = _networkHasAnyAdWithReason(cfg, n);
       if (!ok) continue;
@@ -201,7 +208,25 @@ class AdsService {
     if (_supportsNetworkBool(cfg, AdsNetwork.ironsource, _AdKind.banner) || _supportsNetworkBool(cfg, AdsNetwork.ironsource, _AdKind.interstitial) || _supportsNetworkBool(cfg, AdsNetwork.ironsource, _AdKind.rewarded)) {
       await _initIronSource(cfg);
     }
+    if (_supportsNetworkBool(cfg, AdsNetwork.startio, _AdKind.banner) || _supportsNetworkBool(cfg, AdsNetwork.startio, _AdKind.interstitial) || _supportsNetworkBool(cfg, AdsNetwork.startio, _AdKind.rewarded)) {
+      await _initStartIo();
+    }
     _initialized = true;
+  }
+
+  Future<void> _initStartIo() async {
+    if (_startioInitialized) return;
+    try {
+      await _startAppSdk.setUserConsent(
+        'pas',
+        DateTime.now().millisecondsSinceEpoch,
+        hasConsent: true,
+      );
+      _startioInitialized = true;
+      _log('[Start.io] init SUCCESS');
+    } catch (e) {
+      _log('[Start.io] init FAILED: $e');
+    }
   }
 
   Future<void> _initApplovin(AdsConfig cfg) async {
@@ -313,9 +338,6 @@ class AdsService {
     return false;
   }
 
-  /// Pick a full list of eligible networks for an ad kind, ordered by preference.
-  /// First element = primary pick (effective provider). Others = runtime fallbacks in case of No Fill (MEDIATION MODE ONLY).
-  /// In Single Provider Mode, returns only the primary network even if invalid (respecting user choice).
   List<AdsNetwork> _rankedNetworksFor(_AdKind kind, {int maxFallbacks = 2}) {
     final cfg = _config;
     if (cfg == null) return const [];
@@ -332,7 +354,7 @@ class AdsService {
       _log('rankedNetworksFor($kind): SINGLE PROVIDER MODE -> returning only primary=$logNetworks (no fallbacks, respecting user choice)');
       return ranked;
     }
-    final fallbackOrder = <AdsNetwork>[AdsNetwork.unity, AdsNetwork.applovin, AdsNetwork.ironsource, AdsNetwork.admob];
+    final fallbackOrder = <AdsNetwork>[AdsNetwork.unity, AdsNetwork.applovin, AdsNetwork.ironsource, AdsNetwork.startio, AdsNetwork.admob];
     for (final n in fallbackOrder) {
       if (used.contains(n)) continue;
       final s = _supportsNetwork(cfg, n, kind);
@@ -381,6 +403,7 @@ class AdsService {
         AdsNetwork.applovin => _showApplovinInterstitial(cfg),
         AdsNetwork.unity => _showUnityInterstitial(cfg),
         AdsNetwork.ironsource => _showIronSourceInterstitial(cfg),
+        AdsNetwork.startio => _showStartIoInterstitial(cfg),
       };
       if (ok) {
         if (attempt > 1) _log('showInterstitial: SUCCESS on attempt #$attempt via $network (fallback worked)');
@@ -427,6 +450,7 @@ class AdsService {
         AdsNetwork.applovin => _showApplovinRewarded(cfg, onEarnedReward: guardedOnEarned, requireEarnedReward: requireEarnedReward),
         AdsNetwork.unity => _showUnityRewarded(cfg, onEarnedReward: guardedOnEarned, requireEarnedReward: requireEarnedReward),
         AdsNetwork.ironsource => _showIronSourceRewarded(cfg, onEarnedReward: guardedOnEarned, requireEarnedReward: requireEarnedReward),
+        AdsNetwork.startio => _showStartIoRewarded(cfg, onEarnedReward: guardedOnEarned, requireEarnedReward: requireEarnedReward),
       };
       if (ok) {
         if (attempt > 1) _log('showRewarded: SUCCESS on attempt #$attempt via $network (fallback worked)');
@@ -438,6 +462,91 @@ class AdsService {
     }
     _log('showRewarded: FAILED after ${ranked.length} attempts — all eligible networks returned No Fill');
     return false;
+  }
+
+  // ==================== START.IO INTERSTITIAL ====================
+  Future<bool> _showStartIoInterstitial(AdsConfig cfg) async {
+    await _initStartIo();
+    final c = Completer<bool>();
+    try {
+      await _startAppSdk.loadInterstitial(
+        onAdDisplayed: () => _log('[Start.io] Interstitial displayed'),
+        onAdNotDisplayed: () {
+          _log('[Start.io] Interstitial not displayed');
+          if (!c.isCompleted) c.complete(false);
+        },
+        onAdClicked: () => _log('[Start.io] Interstitial clicked'),
+        onAdHidden: () {
+          _log('[Start.io] Interstitial hidden');
+          if (!c.isCompleted) c.complete(true);
+        },
+      ).then((ad) {
+        ad?.show();
+      }).catchError((err) {
+        _log('[Start.io] Interstitial load/show error: $err');
+        if (!c.isCompleted) c.complete(false);
+      });
+    } catch (e) {
+      _log('[Start.io] Interstitial exception: $e');
+      if (!c.isCompleted) c.complete(false);
+    }
+    return c.future.timeout(
+      const Duration(seconds: 45),
+      onTimeout: () => false,
+    );
+  }
+
+  // ==================== START.IO REWARDED ====================
+  Future<bool> _showStartIoRewarded(
+    AdsConfig cfg, {
+    required VoidCallback onEarnedReward,
+    required bool requireEarnedReward,
+  }) async {
+    await _initStartIo();
+    final c = Completer<bool>();
+    var earned = false;
+    var shownAt = DateTime.now();
+
+    try {
+      await _startAppSdk.loadRewardedVideo(
+        onAdDisplayed: () {
+          shownAt = DateTime.now();
+          _log('[Start.io] Rewarded video displayed');
+        },
+        onAdNotDisplayed: () {
+          _log('[Start.io] Rewarded video not displayed');
+          if (!c.isCompleted) c.complete(false);
+        },
+        onAdClicked: () => _log('[Start.io] Rewarded video clicked'),
+        onAdHidden: () {
+          _log('[Start.io] Rewarded video hidden');
+          final seconds = DateTime.now().difference(shownAt).inSeconds;
+          final completed = requireEarnedReward ? earned : (seconds >= 4);
+          if (!c.isCompleted) c.complete(completed);
+        },
+        onRewarded: (reward) {
+          _log('[Start.io] User earned reward');
+          if (!earned) {
+            earned = true;
+            onEarnedReward();
+          }
+        },
+      ).then((ad) {
+        shownAt = DateTime.now();
+        ad?.show();
+      }).catchError((err) {
+        _log('[Start.io] Rewarded video load/show error: $err');
+        if (!c.isCompleted) c.complete(false);
+      });
+    } catch (e) {
+      _log('[Start.io] Rewarded video exception: $e');
+      if (!c.isCompleted) c.complete(false);
+    }
+
+    return c.future.timeout(
+      const Duration(seconds: 90),
+      onTimeout: () => requireEarnedReward ? earned : true,
+    );
   }
 
   Future<bool> _showAdmobInterstitial(AdsConfig cfg) async {
@@ -786,8 +895,6 @@ class AdsService {
       return resultC.future;
     }
 
-    // Callback-first strategy: wait for onAdLoaded or onAdLoadFailed.
-    // Fallback to isAdReady polling only if the plugin silently swallows the callback.
     const safetyTimeoutMs = 15000;
     const tickMs = 1000;
     var waited = 0;
@@ -920,7 +1027,6 @@ class AdsService {
       return resultC.future;
     }
 
-    // Callback-first strategy (same as interstitial)
     const safetyTimeoutMs = 15000;
     const tickMs = 1000;
     var waited = 0;
