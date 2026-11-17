@@ -217,11 +217,6 @@ class AdsService {
   Future<void> _initStartIo() async {
     if (_startioInitialized) return;
     try {
-      await _startAppSdk.setUserConsent(
-        'pas',
-        DateTime.now().millisecondsSinceEpoch,
-        hasConsent: true,
-      );
       _startioInitialized = true;
       _log('[Start.io] init SUCCESS');
     } catch (e) {
@@ -469,7 +464,7 @@ class AdsService {
     await _initStartIo();
     final c = Completer<bool>();
     try {
-      await _startAppSdk.loadInterstitial(
+      final StartAppInterstitialAd? ad = await _startAppSdk.loadInterstitialAd(
         onAdDisplayed: () => _log('[Start.io] Interstitial displayed'),
         onAdNotDisplayed: () {
           _log('[Start.io] Interstitial not displayed');
@@ -480,12 +475,12 @@ class AdsService {
           _log('[Start.io] Interstitial hidden');
           if (!c.isCompleted) c.complete(true);
         },
-      ).then((ad) {
-        ad?.show();
-      }).catchError((err) {
-        _log('[Start.io] Interstitial load/show error: $err');
+      );
+      if (ad != null) {
+        ad.show();
+      } else {
         if (!c.isCompleted) c.complete(false);
-      });
+      }
     } catch (e) {
       _log('[Start.io] Interstitial exception: $e');
       if (!c.isCompleted) c.complete(false);
@@ -508,7 +503,7 @@ class AdsService {
     var shownAt = DateTime.now();
 
     try {
-      await _startAppSdk.loadRewardedVideo(
+      final StartAppRewardedVideoAd? ad = await _startAppSdk.loadRewardedVideoAd(
         onAdDisplayed: () {
           shownAt = DateTime.now();
           _log('[Start.io] Rewarded video displayed');
@@ -524,20 +519,21 @@ class AdsService {
           final completed = requireEarnedReward ? earned : (seconds >= 4);
           if (!c.isCompleted) c.complete(completed);
         },
-        onRewarded: (reward) {
-          _log('[Start.io] User earned reward');
+        onVideoCompleted: () {
+          _log('[Start.io] User completed video / earned reward');
           if (!earned) {
             earned = true;
             onEarnedReward();
           }
         },
-      ).then((ad) {
+      );
+
+      if (ad != null) {
         shownAt = DateTime.now();
-        ad?.show();
-      }).catchError((err) {
-        _log('[Start.io] Rewarded video load/show error: $err');
+        ad.show();
+      } else {
         if (!c.isCompleted) c.complete(false);
-      });
+      }
     } catch (e) {
       _log('[Start.io] Rewarded video exception: $e');
       if (!c.isCompleted) c.complete(false);
