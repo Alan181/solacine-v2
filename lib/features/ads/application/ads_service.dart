@@ -320,12 +320,8 @@ class AdsService {
     _wortiseInitCompleter = c;
     _log('[Wortise] init start: appId=${cfg.wortise.appId}');
     try {
-      // Inisialisasi resmi sesuai dokumentasi Wortise SDK Flutter: WortiseSdk.initialize(appId)
       await wortise_ads.WortiseSdk.initialize(cfg.wortise.appId);
-      
-      // Mengaktifkan mode test jika aplikasi berjalan di environment debug (kDebugMode)
       await wortise_ads.AdSettings.setTestEnabled(kDebugMode);
-
       _wortiseInitialized = true;
       _log('[Wortise] init SUCCESS');
     } catch (e, st) {
@@ -866,7 +862,7 @@ class AdsService {
     final unitId = cfg.wortise.interstitialId;
     if (unitId.trim().isEmpty) return false;
 
-    final interstitialAd = wortise_ads.InterstitialAd(unitId: unitId);
+    final interstitialAd = wortise_ads.InterstitialAd(unitId);
     final c = Completer<bool>();
 
     interstitialAd.onLoaded = () => interstitialAd.show();
@@ -888,7 +884,7 @@ class AdsService {
     final unitId = cfg.wortise.rewardedId;
     if (unitId.trim().isEmpty) return false;
 
-    final rewardedAd = wortise_ads.RewardedAd(unitId: unitId);
+    final rewardedAd = wortise_ads.RewardedAd(unitId);
     final c = Completer<bool>();
     var earned = false;
 
@@ -935,7 +931,7 @@ class _IronSourceInterstitialListener with LevelPlayInterstitialAdListener {
   });
 
   final void Function(LevelPlayAdInfo adInfo) onLoaded;
-  final void Function(LevelPlayAdInfo adInfo) on`Displayed;
+  final void Function(LevelPlayAdInfo adInfo) onDisplayed;
   final void Function(LevelPlayAdInfo adInfo) onClosed;
   final void Function(LevelPlayAdError error, LevelPlayAdInfo adInfo) onDisplayFailed;
   final void Function(LevelPlayAdError error) onLoadFailed;
