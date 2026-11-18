@@ -870,34 +870,35 @@ class AdsService {
 
     _log('[Wortise] showInterstitial: unitId=$unitId');
     final c = Completer<bool>();
-    late final wortise_ads.InterstitialAd interstitialAd;
+    final interstitialAd = wortise_ads.InterstitialAd(unitId);
 
-    interstitialAd = wortise_ads.InterstitialAd(
-      unitId,
-      (event, args) async {
-        switch (event) {
-          case wortise_ads.InterstitialAdEvent.LOADED:
-            _log('[Wortise] Interstitial loaded, showing...');
-            try {
-              await interstitialAd.showAd();
-            } catch (_) {
-              if (!c.isCompleted) c.complete(false);
-            }
-          case wortise_ads.InterstitialAdEvent.FAILED_TO_LOAD:
-          case wortise_ads.InterstitialAdEvent.FAILED_TO_SHOW:
-            _log('[Wortise] Interstitial failed: $event');
-            if (!c.isCompleted) c.complete(false);
-          case wortise_ads.InterstitialAdEvent.DISMISSED:
-            _log('[Wortise] Interstitial dismissed');
-            if (!c.isCompleted) c.complete(true);
-          default:
-            break;
+    interstitialAd.listener = _WortiseInterstitialListener(
+      onLoaded: (ad) async {
+        _log('[Wortise] Interstitial loaded, showing...');
+        try {
+          final isShown = await ad.show();
+          if (isShown != true && !c.isCompleted) {
+            c.complete(false);
+          }
+        } catch (_) {
+          if (!c.isCompleted) c.complete(false);
         }
+      },
+      onFailedToLoad: (ad, error) {
+        _log('[Wortise] Interstitial failed to load: $error');
+        if (!c.isCompleted) c.complete(false);
+      },
+      onShown: (ad) {
+        _log('[Wortise] Interstitial shown');
+      },
+      onDismissed: (ad) {
+        _log('[Wortise] Interstitial dismissed');
+        if (!c.isCompleted) c.complete(true);
       },
     );
 
     try {
-      await interstitialAd.loadAd();
+      interstitialAd.load();
     } catch (_) {
       if (!c.isCompleted) c.complete(false);
     }
@@ -921,45 +922,104 @@ class AdsService {
     _log('[Wortise] showRewarded: unitId=$unitId');
     final c = Completer<bool>();
     var earned = false;
-    late final wortise_ads.RewardedAd rewardedAd;
+    final rewardedAd = wortise_ads.RewardedAd(unitId);
 
-    rewardedAd = wortise_ads.RewardedAd(
-      unitId,
-      (event, args) async {
-        switch (event) {
-          case wortise_ads.RewardedAdEvent.LOADED:
-            _log('[Wortise] Rewarded loaded, showing...');
-            try {
-              await rewardedAd.showAd();
-            } catch (_) {
-              if (!c.isCompleted) c.complete(false);
-            }
-          case wortise_ads.RewardedAdEvent.FAILED_TO_LOAD:
-          case wortise_ads.RewardedAdEvent.FAILED_TO_SHOW:
-            _log('[Wortise] Rewarded failed: $event');
-            if (!c.isCompleted) c.complete(false);
-          case wortise_ads.RewardedAdEvent.COMPLETED:
-            _log('[Wortise] Rewarded completed');
-            earned = true;
-            onEarnedReward();
-          case wortise_ads.RewardedAdEvent.DISMISSED:
-            _log('[Wortise] Rewarded dismissed');
-            final completed = requireEarnedReward ? earned : true;
-            if (!c.isCompleted) c.complete(completed);
-          default:
-            break;
+    rewardedAd.listener = _WortiseRewardedListener(
+      onLoaded: (ad) async {
+        _log('[Wortise] Rewarded loaded, showing...');
+        try {
+          final isShown = await ad.show();
+          if (isShown != true && !c.isCompleted) {
+            c.complete(false);
+          }
+        } catch (_) {
+          if (!c.isCompleted) c.complete(false);
         }
+      },
+      onFailedToLoad: (ad, error) {
+        _log('[Wortise] Rewarded failed to load: $error');
+        if (!c.isCompleted) c.complete(false);
+      },
+      onShown: (ad) {
+        _log('[Wortise] Rewarded shown');
+      },
+      onRewarded: (ad, reward) {
+        _log('[Wortise] Rewarded earned reward');
+        earned = true;
+        onEarnedReward();
+      },
+      onDismissed: (ad) {
+        _log('[Wortise] Rewarded dismissed');
+        final completed = requireEarnedReward ? earned : true;
+        if (!c.isCompleted) c.complete(completed);
       },
     );
 
     try {
-      await rewardedAd.loadAd();
+      rewardedAd.load();
     } catch (_) {
       if (!c.isCompleted) c.complete(false);
     }
 
     return c.future.timeout(const Duration(seconds: 30), onTimeout: () => requireEarnedReward ? earned : false);
   }
+}
+
+class _WortiseInterstitialListener with wortise_ads.InterstitialAdListener {
+  _WortiseInterstitialListener({
+    required this.onLoaded,
+    required this.onFailedToLoad,
+    required this.onShown,
+    required this.onDismissed,
+  });
+
+  final void Function(wortise_ads.InterstitialAd ad) onLoaded;
+  final void Function(wortise_ads.InterstitialAd ad, wortise_ads.AdError error) onFailedToLoad;
+  final void Function(wortise_ads.InterstitialAd ad) onShown;
+  final void Function(wortise_ads.InterstitialAd ad) onDismissed;
+
+  @override
+  void onInterstitialLoaded(wortise_ads.InterstitialAd ad) => onLoaded(ad);
+
+  @override
+  void onInterstitialFailedToLoad(wortise_ads.InterstitialAd ad, wortise_ads.AdError error) => onFailedToLoad(ad, error);
+
+  @override
+  void onInterstitialShown(wortise_ads.InterstitialAd ad) => onShown(ad);
+
+  @override
+  void onInterstitialDismissed(wortise_ads.InterstitialAd ad) => onDismissed(ad);
+}
+
+class _WortiseRewardedListener with wortise_ads.RewardedAdListener {
+  _WortiseRewardedListener({
+    required this.onLoaded,
+    required this.onFailedToLoad,
+    required this.onShown,
+    required this.onRewarded,
+    required this.onDismissed,
+  });
+
+  final void Function(wortise_ads.RewardedAd ad) onLoaded;
+  final void Function(wortise_ads.RewardedAd ad, wortise_ads.AdError error) onFailedToLoad;
+  final void Function(wortise_ads.RewardedAd ad) onShown;
+  final void Function(wortise_ads.RewardedAd ad, wortise_ads.Reward reward) onRewarded;
+  final void Function(wortise_ads.RewardedAd ad) onDismissed;
+
+  @override
+  void onRewardedLoaded(wortise_ads.RewardedAd ad) => onLoaded(ad);
+
+  @override
+  void onRewardedFailedToLoad(wortise_ads.RewardedAd ad, wortise_ads.AdError error) => onFailedToLoad(ad, error);
+
+  @override
+  void onRewardedShown(wortise_ads.RewardedAd ad) => onShown(ad);
+
+  @override
+  void onRewardedRewarded(wortise_ads.RewardedAd ad, wortise_ads.Reward reward) => onRewarded(ad, reward);
+
+  @override
+  void onRewardedDismissed(wortise_ads.RewardedAd ad) => onDismissed(ad);
 }
 
 class _IronSourceInitListener with LevelPlayInitListener {
