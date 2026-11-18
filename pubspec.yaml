@@ -63,7 +63,7 @@ dependencies:
   applovin_max: ^4.6.4
   unity_ads_plugin: ^0.4.0
   unity_levelplay_mediation: ^9.2.0
-  startapp_sdk: ^1.0.1
+  wortise: ^1.8.3
   flutter_svg: ^2.3.0
   video_player: ^2.14.1
 
