@@ -857,51 +857,107 @@ class AdsService {
 
   Future<bool> _showWortiseInterstitial(AdsConfig cfg) async {
     await _initWortise(cfg);
-    if (!_wortiseInitialized) return false;
+    if (!_wortiseInitialized) {
+      _log('[Wortise] showInterstitial ABORT: not initialized');
+      return false;
+    }
 
     final unitId = cfg.wortise.interstitialId;
-    if (unitId.trim().isEmpty) return false;
+    if (unitId.trim().isEmpty) {
+      _log('[Wortise] showInterstitial ABORT: interstitialId empty');
+      return false;
+    }
 
-    final interstitialAd = wortise_ads.InterstitialAd(unitId);
+    _log('[Wortise] showInterstitial: unitId=$unitId');
     final c = Completer<bool>();
+    late final wortise_ads.InterstitialAd interstitialAd;
 
-    interstitialAd.onLoaded = () => interstitialAd.show();
-    interstitialAd.onFailedToLoad = (_) {
+    interstitialAd = wortise_ads.InterstitialAd(
+      unitId,
+      (event, args) async {
+        switch (event) {
+          case wortise_ads.InterstitialAdEvent.LOADED:
+            _log('[Wortise] Interstitial loaded, showing...');
+            try {
+              await interstitialAd.showAd();
+            } catch (_) {
+              if (!c.isCompleted) c.complete(false);
+            }
+          case wortise_ads.InterstitialAdEvent.FAILED_TO_LOAD:
+          case wortise_ads.InterstitialAdEvent.FAILED_TO_SHOW:
+            _log('[Wortise] Interstitial failed: $event');
+            if (!c.isCompleted) c.complete(false);
+          case wortise_ads.InterstitialAdEvent.DISMISSED:
+            _log('[Wortise] Interstitial dismissed');
+            if (!c.isCompleted) c.complete(true);
+          default:
+            break;
+        }
+      },
+    );
+
+    try {
+      await interstitialAd.loadAd();
+    } catch (_) {
       if (!c.isCompleted) c.complete(false);
-    };
-    interstitialAd.onDismissed = () {
-      if (!c.isCompleted) c.complete(true);
-    };
+    }
 
-    interstitialAd.load();
     return c.future.timeout(const Duration(seconds: 30), onTimeout: () => false);
   }
 
   Future<bool> _showWortiseRewarded(AdsConfig cfg, {required VoidCallback onEarnedReward, required bool requireEarnedReward}) async {
     await _initWortise(cfg);
-    if (!_wortiseInitialized) return false;
+    if (!_wortiseInitialized) {
+      _log('[Wortise] showRewarded ABORT: not initialized');
+      return false;
+    }
 
     final unitId = cfg.wortise.rewardedId;
-    if (unitId.trim().isEmpty) return false;
+    if (unitId.trim().isEmpty) {
+      _log('[Wortise] showRewarded ABORT: rewardedId empty');
+      return false;
+    }
 
-    final rewardedAd = wortise_ads.RewardedAd(unitId);
+    _log('[Wortise] showRewarded: unitId=$unitId');
     final c = Completer<bool>();
     var earned = false;
+    late final wortise_ads.RewardedAd rewardedAd;
 
-    rewardedAd.onLoaded = () => rewardedAd.show();
-    rewardedAd.onFailedToLoad = (_) {
+    rewardedAd = wortise_ads.RewardedAd(
+      unitId,
+      (event, args) async {
+        switch (event) {
+          case wortise_ads.RewardedAdEvent.LOADED:
+            _log('[Wortise] Rewarded loaded, showing...');
+            try {
+              await rewardedAd.showAd();
+            } catch (_) {
+              if (!c.isCompleted) c.complete(false);
+            }
+          case wortise_ads.RewardedAdEvent.FAILED_TO_LOAD:
+          case wortise_ads.RewardedAdEvent.FAILED_TO_SHOW:
+            _log('[Wortise] Rewarded failed: $event');
+            if (!c.isCompleted) c.complete(false);
+          case wortise_ads.RewardedAdEvent.COMPLETED:
+            _log('[Wortise] Rewarded completed');
+            earned = true;
+            onEarnedReward();
+          case wortise_ads.RewardedAdEvent.DISMISSED:
+            _log('[Wortise] Rewarded dismissed');
+            final completed = requireEarnedReward ? earned : true;
+            if (!c.isCompleted) c.complete(completed);
+          default:
+            break;
+        }
+      },
+    );
+
+    try {
+      await rewardedAd.loadAd();
+    } catch (_) {
       if (!c.isCompleted) c.complete(false);
-    };
-    rewardedAd.onRewarded = () {
-      earned = true;
-      onEarnedReward();
-    };
-    rewardedAd.onDismissed = () {
-      final completed = requireEarnedReward ? earned : true;
-      if (!c.isCompleted) c.complete(completed);
-    };
+    }
 
-    rewardedAd.load();
     return c.future.timeout(const Duration(seconds: 30), onTimeout: () => requireEarnedReward ? earned : false);
   }
 }
