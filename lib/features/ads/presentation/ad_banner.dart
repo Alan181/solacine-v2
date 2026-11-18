@@ -5,7 +5,6 @@ import 'package:applovin_max/applovin_max.dart' as applovin;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:unity_ads_plugin/unity_ads_plugin.dart' hide BannerSize;
 import 'package:unity_levelplay_mediation/unity_levelplay_mediation.dart';
-import 'package:wortise/wortise.dart';
 
 import '../application/ads_initializer.dart';
 import '../application/ads_providers.dart';
@@ -335,32 +334,6 @@ class _AdBannerState extends ConsumerState<AdBanner> {
         height: _ironHeight,
         width: double.infinity,
         child: banner,
-      );
-    }
-
-    if (network == AdsNetwork.wortise) {
-      final bannerId = cfgValue.wortise.bannerId;
-      if (bannerId.trim().isEmpty) {
-        _log('Wortise banner: bannerId empty, marking as failed');
-        _failedNetworks[AdsNetwork.wortise] = 'empty_bannerId';
-        if (mounted) setState(() {});
-        return const SizedBox.shrink();
-      }
-      _log('Wortise banner: bannerId=$bannerId');
-      return SizedBox(
-        height: 50,
-        width: double.infinity,
-        child: BannerAdView(
-          unitId: bannerId,
-          size: BannerSize.banner,
-          onLoaded: () => _log('Wortise banner: loaded'),
-          onFailedToLoad: (error) {
-            _log('Wortise banner: failed $error — fallback to next network');
-            _failedNetworks[AdsNetwork.wortise] = error.toString();
-            if (mounted) setState(() {});
-          },
-          onClicked: () => _log('Wortise banner: clicked'),
-        ),
       );
     }
 
