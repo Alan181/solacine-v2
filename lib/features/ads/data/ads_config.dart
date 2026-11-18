@@ -7,7 +7,6 @@ class AdsConfig {
     required this.applovin,
     required this.unity,
     required this.ironsource,
-    required this.wortise,
     required this.vast,
   });
 
@@ -18,7 +17,6 @@ class AdsConfig {
   final AppLovinAdsConfig applovin;
   final UnityAdsConfig unity;
   final IronSourceAdsConfig ironsource;
-  final WortiseAdsConfig wortise;
   final VastAdsConfig vast;
 
   static AdsConfig? fromAppConfig(Map<String, dynamic> data, {Map<String, dynamic> publicSettings = const <String, dynamic>{}}) {
@@ -34,7 +32,6 @@ class AdsConfig {
     final applovin = AppLovinAdsConfig.fromJson((ads['applovin'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{});
     final unity = UnityAdsConfig.fromJson((ads['unity'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{});
     final ironsource = IronSourceAdsConfig.fromJson((ads['ironsource'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{});
-    final wortise = WortiseAdsConfig.fromJson((ads['wortise'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{});
     final vast = VastAdsConfig.fromJson(
       (ads['vast'] as Map?)?.cast<String, dynamic>() ??
       (publicSettings['ads'] is Map ? ((publicSettings['ads'] as Map)['vast'] as Map?)?.cast<String, dynamic>() : null) ??
@@ -75,13 +72,6 @@ class AdsConfig {
           interstitialId: '',
           rewardedId: '',
         ),
-        wortise: const WortiseAdsConfig(
-          enabled: false,
-          appId: '',
-          bannerId: '',
-          interstitialId: '',
-          rewardedId: '',
-        ),
         vast: const VastAdsConfig(
           enabled: false,
           url: '',
@@ -99,7 +89,6 @@ class AdsConfig {
       applovin: applovin,
       unity: unity,
       ironsource: ironsource,
-      wortise: wortise,
       vast: vast,
     );
   }
@@ -212,7 +201,6 @@ enum AdsNetwork {
   applovin,
   unity,
   ironsource,
-  wortise,
 }
 
 enum MediationMode {
@@ -251,7 +239,6 @@ class MediationAdsConfig {
         'applovin' => AdsNetwork.applovin,
         'unity' => AdsNetwork.unity,
         'ironsource' => AdsNetwork.ironsource,
-        'wortise' => AdsNetwork.wortise,
         _ => null,
       };
       if (key == null) continue;
@@ -396,34 +383,6 @@ class IronSourceAdsConfig {
     return IronSourceAdsConfig(
       enabled: enabled,
       appKey: (json['app_key'] as String?)?.trim() ?? '',
-      bannerId: (json['banner_id'] as String?)?.trim() ?? '',
-      interstitialId: (json['interstitial_id'] as String?)?.trim() ?? '',
-      rewardedId: (json['rewarded_id'] as String?)?.trim() ?? '',
-    );
-  }
-}
-
-class WortiseAdsConfig {
-  const WortiseAdsConfig({
-    required this.enabled,
-    required this.appId,
-    required this.bannerId,
-    required this.interstitialId,
-    required this.rewardedId,
-  });
-
-  final bool enabled;
-  final String appId;
-  final String bannerId;
-  final String interstitialId;
-  final String rewardedId;
-
-  static WortiseAdsConfig fromJson(Map<String, dynamic> json) {
-    final statusRaw = (json['status'] as String?)?.trim().toLowerCase() ?? 'disabled';
-    final enabled = statusRaw == 'enabled';
-    return WortiseAdsConfig(
-      enabled: enabled,
-      appId: (json['app_id'] as String?)?.trim() ?? '',
       bannerId: (json['banner_id'] as String?)?.trim() ?? '',
       interstitialId: (json['interstitial_id'] as String?)?.trim() ?? '',
       rewardedId: (json['rewarded_id'] as String?)?.trim() ?? '',
