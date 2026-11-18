@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:applovin_max/applovin_max.dart' as applovin;
-import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart' as admob_ads;
 import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 import 'package:unity_levelplay_mediation/unity_levelplay_mediation.dart';
-import 'package:wortise/wortise.dart';
+import 'package:wortise/wortise.dart' as wortise_ads;
 
 import '../data/ads_config.dart';
 
@@ -22,7 +22,7 @@ class AdsService {
   bool _initialized = false;
   AdsConfig? _config;
 
-  InterstitialAd? _admobInterstitial;
+  admob_ads.InterstitialAd? _admobInterstitial;
   bool _loadingAdmobInterstitial = false;
 
   bool _applovinInitialized = false;
@@ -196,7 +196,7 @@ class AdsService {
     _config = cfg;
     if (kIsWeb) return;
     if (_supportsNetworkBool(cfg, AdsNetwork.admob, _AdKind.banner) || _supportsNetworkBool(cfg, AdsNetwork.admob, _AdKind.interstitial) || _supportsNetworkBool(cfg, AdsNetwork.admob, _AdKind.rewarded)) {
-      await MobileAds.instance.initialize();
+      await admob_ads.MobileAds.instance.initialize();
     }
     if (_supportsNetworkBool(cfg, AdsNetwork.applovin, _AdKind.banner) || _supportsNetworkBool(cfg, AdsNetwork.applovin, _AdKind.interstitial) || _supportsNetworkBool(cfg, AdsNetwork.applovin, _AdKind.rewarded)) {
       await _initApplovin(cfg);
@@ -280,19 +280,12 @@ class AdsService {
     _log('[IronSource] init start: appKey=${cfg.ironsource.appKey} testMode=$kDebugMode');
 
     try {
-      _log('[IronSource] Privacy: skipping GDPR/CCPA explicit calls (managed internally by LevelPlay SDK; integrate real CMP in production if required)');
-
       final listener = _IronSourceInitListener(
         onSuccess: (config) {
-          try {
-            _log('[IronSource] init SUCCESS');
-          } catch (_) {
-            _log('[IronSource] init SUCCESS');
-          }
+          _log('[IronSource] init SUCCESS');
           _ironsourceInitialized = true;
           _ironsourceInterstitial = LevelPlayInterstitialAd(adUnitId: cfg.ironsource.interstitialId);
           _ironsourceRewarded = LevelPlayRewardedAd(adUnitId: cfg.ironsource.rewardedId);
-          _log('[IronSource] interstitial adUnitId=${cfg.ironsource.interstitialId}, rewarded adUnitId=${cfg.ironsource.rewardedId}');
           if (!c.isCompleted) c.complete();
         },
         onFailed: (error) {
@@ -327,8 +320,12 @@ class AdsService {
     _wortiseInitCompleter = c;
     _log('[Wortise] init start: appId=${cfg.wortise.appId}');
     try {
-      // Inisialisasi resmi SDK Wortise
-      await Wortise.init(cfg.wortise.appId);
+      // Inisialisasi resmi sesuai dokumentasi Wortise SDK Flutter: WortiseSdk.initialize(appId)
+      await wortise_ads.WortiseSdk.initialize(cfg.wortise.appId);
+      
+      // Mengaktifkan mode test jika aplikasi berjalan di environment debug (kDebugMode)
+      await wortise_ads.AdSettings.setTestEnabled(kDebugMode);
+
       _wortiseInitialized = true;
       _log('[Wortise] init SUCCESS');
     } catch (e, st) {
@@ -362,8 +359,6 @@ class AdsService {
       used.add(primary);
     }
     if (!mediation) {
-      final logNetworks = ranked.isEmpty ? 'null' : ranked.first.toString();
-      _log('rankedNetworksFor($kind): SINGLE PROVIDER MODE -> returning only primary=$logNetworks (no fallbacks, respecting user choice)');
       return ranked;
     }
     final fallbackOrder = <AdsNetwork>[AdsNetwork.unity, AdsNetwork.applovin, AdsNetwork.ironsource, AdsNetwork.wortise, AdsNetwork.admob];
@@ -375,7 +370,6 @@ class AdsService {
       used.add(n);
       if (ranked.length - 1 >= maxFallbacks) break;
     }
-    _log('rankedNetworksFor($kind): MEDIATION MODE -> ranked=$ranked');
     return ranked;
   }
 
@@ -399,17 +393,10 @@ class AdsService {
     _lastFullScreenAdShownAt = now;
 
     final ranked = _rankedNetworksFor(_AdKind.interstitial);
-    if (ranked.isEmpty) {
-      _log('showInterstitial: no networks ranked for interstitial');
-      return false;
-    }
-    if (ranked.length > 1) {
-      _log('showInterstitial: primary=${ranked.first}, runtime fallbacks=${ranked.skip(1).join(', ')} (in case of No Fill)');
-    }
+    if (ranked.isEmpty) return false;
 
     for (var i = 0; i < ranked.length; i++) {
       final network = ranked[i];
-      final attempt = i + 1;
       final ok = await switch (network) {
         AdsNetwork.admob => _showAdmobInterstitial(cfg),
         AdsNetwork.applovin => _showApplovinInterstitial(cfg),
@@ -417,15 +404,8 @@ class AdsService {
         AdsNetwork.ironsource => _showIronSourceInterstitial(cfg),
         AdsNetwork.wortise => _showWortiseInterstitial(cfg),
       };
-      if (ok) {
-        if (attempt > 1) _log('showInterstitial: SUCCESS on attempt #$attempt via $network (fallback worked)');
-        return true;
-      }
-      if (attempt < ranked.length) {
-        _log('showInterstitial: attempt #$attempt via $network FAILED (No Fill / Timeout). Trying next fallback: ${ranked[attempt]}');
-      }
+      if (ok) return true;
     }
-    _log('showInterstitial: FAILED after ${ranked.length} attempts — all eligible networks returned No Fill');
     return false;
   }
 
@@ -435,17 +415,10 @@ class AdsService {
     if (kIsWeb) return false;
     if (!adsEnabled(cfg)) return false;
 
-    final now = DateTime.now();
-    _lastFullScreenAdShownAt = now;
+    _lastFullScreenAdShownAt = DateTime.now();
 
     final ranked = _rankedNetworksFor(_AdKind.rewarded);
-    if (ranked.isEmpty) {
-      _log('showRewarded: no networks ranked for rewarded');
-      return false;
-    }
-    if (ranked.length > 1) {
-      _log('showRewarded: primary=${ranked.first}, runtime fallbacks=${ranked.skip(1).join(', ')} (in case of No Fill)');
-    }
+    if (ranked.isEmpty) return false;
 
     var rewardGiven = false;
     void guardedOnEarned() {
@@ -456,7 +429,6 @@ class AdsService {
 
     for (var i = 0; i < ranked.length; i++) {
       final network = ranked[i];
-      final attempt = i + 1;
       final ok = await switch (network) {
         AdsNetwork.admob => _showAdmobRewarded(cfg, onEarnedReward: guardedOnEarned, requireEarnedReward: requireEarnedReward),
         AdsNetwork.applovin => _showApplovinRewarded(cfg, onEarnedReward: guardedOnEarned, requireEarnedReward: requireEarnedReward),
@@ -464,15 +436,8 @@ class AdsService {
         AdsNetwork.ironsource => _showIronSourceRewarded(cfg, onEarnedReward: guardedOnEarned, requireEarnedReward: requireEarnedReward),
         AdsNetwork.wortise => _showWortiseRewarded(cfg, onEarnedReward: guardedOnEarned, requireEarnedReward: requireEarnedReward),
       };
-      if (ok) {
-        if (attempt > 1) _log('showRewarded: SUCCESS on attempt #$attempt via $network (fallback worked)');
-        return true;
-      }
-      if (attempt < ranked.length) {
-        _log('showRewarded: attempt #$attempt via $network FAILED (No Fill / Timeout). Trying next fallback: ${ranked[attempt]}');
-      }
+      if (ok) return true;
     }
-    _log('showRewarded: FAILED after ${ranked.length} attempts — all eligible networks returned No Fill');
     return false;
   }
 
@@ -490,7 +455,7 @@ class AdsService {
     if (ad == null) return false;
 
     final c = Completer<bool>();
-    ad.fullScreenContentCallback = FullScreenContentCallback(
+    ad.fullScreenContentCallback = admob_ads.FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _admobInterstitial = null;
@@ -512,13 +477,13 @@ class AdsService {
     return c.future;
   }
 
-  Future<InterstitialAd?> _loadAdmobInterstitial(AdsConfig cfg) async {
-    final c = Completer<InterstitialAd?>();
+  Future<admob_ads.InterstitialAd?> _loadAdmobInterstitial(AdsConfig cfg) async {
+    final c = Completer<admob_ads.InterstitialAd?>();
     final unitId = cfg.admob.effectiveInterstitialId(cfg.platform);
-    InterstitialAd.load(
+    admob_ads.InterstitialAd.load(
       adUnitId: unitId,
-      request: const AdRequest(),
-      adLoadCallback: InterstitialAdLoadCallback(
+      request: const admob_ads.AdRequest(),
+      adLoadCallback: admob_ads.InterstitialAdLoadCallback(
         onAdLoaded: (ad) async {
           try {
             await ad.setImmersiveMode(true);
@@ -539,7 +504,7 @@ class AdsService {
     var shownAt = DateTime.now();
     _lastFullScreenAdShownAt = shownAt;
     final c = Completer<bool>();
-    ad.fullScreenContentCallback = FullScreenContentCallback(
+    ad.fullScreenContentCallback = admob_ads.FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         try {
@@ -567,13 +532,13 @@ class AdsService {
     return c.future;
   }
 
-  Future<RewardedAd?> _loadAdmobRewarded(AdsConfig cfg) async {
-    final c = Completer<RewardedAd?>();
+  Future<admob_ads.RewardedAd?> _loadAdmobRewarded(AdsConfig cfg) async {
+    final c = Completer<admob_ads.RewardedAd?>();
     final unitId = cfg.admob.effectiveRewardedId(cfg.platform);
-    RewardedAd.load(
+    admob_ads.RewardedAd.load(
       adUnitId: unitId,
-      request: const AdRequest(),
-      rewardedAdLoadCallback: RewardedAdLoadCallback(
+      request: const admob_ads.AdRequest(),
+      rewardedAdLoadCallback: admob_ads.RewardedAdLoadCallback(
         onAdLoaded: (ad) async {
           try {
             await ad.setImmersiveMode(true);
@@ -595,7 +560,7 @@ class AdsService {
         onAdLoadedCallback: (_) {},
         onAdDisplayedCallback: (_) {},
         onAdClickedCallback: (_) {},
-        onAdHiddenCallback: (ad) {
+        onAdHiddenCallback: (_) {
           if (!c.isCompleted) c.complete(true);
         },
         onAdDisplayFailedCallback: (_, __) {
@@ -627,7 +592,7 @@ class AdsService {
         onAdLoadedCallback: (_) {},
         onAdDisplayedCallback: (_) {},
         onAdClickedCallback: (_) {},
-        onAdHiddenCallback: (ad) {
+        onAdHiddenCallback: (_) {
           final seconds = DateTime.now().difference(shownAt).inSeconds;
           final completed = requireEarnedReward ? earned : (seconds >= 4);
           if (!c.isCompleted) c.complete(completed);
@@ -651,41 +616,30 @@ class AdsService {
       if (!c.isCompleted) c.complete(false);
       return c.future;
     }
-    shownAt = DateTime.now();
     applovin.AppLovinMAX.showRewardedAd(unitId);
     return c.future;
   }
 
   Future<bool> _showUnityInterstitial(AdsConfig cfg) async {
     await _initUnity(cfg);
-    if (!_unityInitialized) {
-      _log('[Unity] showInterstitial aborted: init failed or never completed');
-      return false;
-    }
+    if (!_unityInitialized) return false;
     final placementId = cfg.unity.interstitialId;
-    _log('[Unity] showInterstitial: placement=$placementId');
     final ok = await _unityEnsureLoaded(placementId);
-    if (!ok) {
-      _log('[Unity] showInterstitial failed: ad not ready after load');
-      return false;
-    }
+    if (!ok) return false;
     final c = Completer<bool>();
     _unityLoaded[placementId] = false;
     UnityAds.showVideoAd(
       placementId: placementId,
-      onStart: (String p) => _log('[Unity] showInterstitial onStart: $p'),
-      onComplete: (String p) {
-        _log('[Unity] showInterstitial onComplete: $p');
+      onStart: (_) {},
+      onComplete: (_) {
         unawaited(_unityEnsureLoaded(placementId));
         if (!c.isCompleted) c.complete(true);
       },
-      onSkipped: (String p) {
-        _log('[Unity] showInterstitial onSkipped: $p');
+      onSkipped: (_) {
         unawaited(_unityEnsureLoaded(placementId));
         if (!c.isCompleted) c.complete(true);
       },
-      onFailed: (String p, UnityAdsShowError e, String m) {
-        _log('[Unity] showInterstitial FAILED: $p error=$e message=$m');
+      onFailed: (_, __, ___) {
         unawaited(_unityEnsureLoaded(placementId));
         if (!c.isCompleted) c.complete(false);
       },
@@ -695,29 +649,18 @@ class AdsService {
 
   Future<bool> _showUnityRewarded(AdsConfig cfg, {required VoidCallback onEarnedReward, required bool requireEarnedReward}) async {
     await _initUnity(cfg);
-    if (!_unityInitialized) {
-      _log('[Unity] showRewarded aborted: init failed or never completed');
-      return false;
-    }
+    if (!_unityInitialized) return false;
     final placementId = cfg.unity.rewardedId;
-    _log('[Unity] showRewarded: placement=$placementId requireEarned=$requireEarnedReward');
     final ok = await _unityEnsureLoaded(placementId);
-    if (!ok) {
-      _log('[Unity] showRewarded failed: ad not ready after load');
-      return false;
-    }
+    if (!ok) return false;
     final c = Completer<bool>();
     var earned = false;
     var shownAt = DateTime.now();
     _unityLoaded[placementId] = false;
     UnityAds.showVideoAd(
       placementId: placementId,
-      onStart: (String p) {
-        shownAt = DateTime.now();
-        _log('[Unity] showRewarded onStart: $p');
-      },
-      onComplete: (String p) {
-        _log('[Unity] showRewarded onComplete: $p');
+      onStart: (_) => shownAt = DateTime.now(),
+      onComplete: (_) {
         if (!earned) {
           earned = true;
           onEarnedReward();
@@ -725,16 +668,13 @@ class AdsService {
         unawaited(_unityEnsureLoaded(placementId));
         if (!c.isCompleted) c.complete(true);
       },
-      onSkipped: (String p) {
-        _log('[Unity] showRewarded onSkipped: $p');
+      onSkipped: (_) {
         unawaited(_unityEnsureLoaded(placementId));
         final seconds = DateTime.now().difference(shownAt).inSeconds;
         final completed = requireEarnedReward ? earned : (seconds >= 4);
-        _log('[Unity] showRewarded skipped: earned=$earned elapsed=${seconds}s completed=$completed');
         if (!c.isCompleted) c.complete(completed);
       },
-      onFailed: (String p, UnityAdsShowError e, String m) {
-        _log('[Unity] showRewarded FAILED: $p error=$e message=$m');
+      onFailed: (_, __, ___) {
         unawaited(_unityEnsureLoaded(placementId));
         if (!c.isCompleted) c.complete(false);
       },
@@ -743,21 +683,15 @@ class AdsService {
   }
 
   Future<bool> _unityEnsureLoaded(String placementId) async {
-    if (_unityLoaded[placementId] == true) {
-      _log('[Unity] already loaded: $placementId');
-      return true;
-    }
-    _log('[Unity] load() placement=$placementId');
+    if (_unityLoaded[placementId] == true) return true;
     final c = Completer<bool>();
     UnityAds.load(
       placementId: placementId,
-      onComplete: (String p) {
+      onComplete: (_) {
         _unityLoaded[placementId] = true;
-        _log('[Unity] load SUCCESS: $p');
         if (!c.isCompleted) c.complete(true);
       },
-      onFailed: (String p, UnityAdsLoadError e, String m) {
-        _log('[Unity] load FAILED: $p error=$e message=$m');
+      onFailed: (_, __, ___) {
         if (!c.isCompleted) c.complete(false);
       },
     );
@@ -766,17 +700,9 @@ class AdsService {
 
   Future<bool> _showIronSourceInterstitial(AdsConfig cfg) async {
     await _initIronSource(cfg);
-    if (!_ironsourceInitialized) {
-      _log('[IronSource] showInterstitial ABORT: init failed or never completed');
-      return false;
-    }
+    if (!_ironsourceInitialized) return false;
     final ad = _ironsourceInterstitial;
-    if (ad == null) {
-      _log('[IronSource] showInterstitial ABORT: interstitial ad object is null');
-      return false;
-    }
-    final adUnitId = cfg.ironsource.interstitialId;
-    _log('[IronSource] showInterstitial start: adUnitId=$adUnitId');
+    if (ad == null) return false;
 
     final loadedC = Completer<void>.sync();
     final failedC = Completer<void>.sync();
@@ -784,28 +710,20 @@ class AdsService {
 
     ad.setListener(
       _IronSourceInterstitialListener(
-        onLoaded: (info) {
-          _log('[IronSource] interstitial onAdLoaded: adUnitId=${info.adUnitId}');
+        onLoaded: (_) {
           if (!loadedC.isCompleted) loadedC.complete();
         },
-        onDisplayed: (info) {
-          _log('[IronSource] interstitial onAdDisplayed: adUnitId=${info.adUnitId}');
-        },
-        onClosed: (info) {
-          _log('[IronSource] interstitial onAdClosed: adUnitId=${info.adUnitId}');
+        onDisplayed: (_) {},
+        onClosed: (_) {
           if (!resultC.isCompleted) resultC.complete(true);
         },
-        onDisplayFailed: (error, info) {
-          _log('[IronSource] interstitial onAdDisplayFailed: adUnitId=${info.adUnitId} errorCode=${error.errorCode} errorMessage=${error.errorMessage}');
+        onDisplayFailed: (_, __) {
           if (!resultC.isCompleted) resultC.complete(false);
         },
-        onLoadFailed: (error) {
-          _log('[IronSource] interstitial onAdLoadFailed: errorCode=${error.errorCode} errorMessage=${error.errorMessage}');
+        onLoadFailed: (_) {
           if (!failedC.isCompleted) failedC.complete();
         },
-        onClicked: (info) {
-          _log('[IronSource] interstitial onAdClicked: adUnitId=${info.adUnitId}');
-        },
+        onClicked: (_) {},
         onFailed: () {
           if (!failedC.isCompleted) failedC.complete();
           if (!resultC.isCompleted) resultC.complete(false);
@@ -814,10 +732,8 @@ class AdsService {
     );
 
     try {
-      _log('[IronSource] interstitial calling loadAd()...');
       ad.loadAd();
-    } catch (e, st) {
-      _log('[IronSource] interstitial loadAd EXCEPTION: $e\n$st');
+    } catch (_) {
       if (!resultC.isCompleted) resultC.complete(false);
       return resultC.future;
     }
@@ -826,27 +742,18 @@ class AdsService {
     const tickMs = 1000;
     var waited = 0;
     var loadedByCallback = false;
-    var failedByCallback = false;
 
     while (waited < safetyTimeoutMs) {
-      if (loadedC.isCompleted) {
-        loadedByCallback = true;
-        break;
-      }
-      if (failedC.isCompleted) {
-        failedByCallback = true;
+      if (loadedC.isCompleted || failedC.isCompleted) {
+        loadedByCallback = loadedC.isCompleted;
         break;
       }
       try {
-        final ready = await ad.isAdReady();
-        if (ready) {
-          _log('[IronSource] interstitial isAdReady=true via polling');
+        if (await ad.isAdReady()) {
           loadedByCallback = true;
           break;
         }
-      } catch (e) {
-        _log('[IronSource] interstitial isAdReady poll warning: $e');
-      }
+      } catch (_) {}
       await Future<void>.delayed(const Duration(milliseconds: tickMs));
       waited += tickMs;
     }
@@ -858,14 +765,10 @@ class AdsService {
 
     try {
       ad.showAd();
-    } catch (e, st) {
-      _log('[IronSource] interstitial showAd EXCEPTION: $e\n$st');
+    } catch (_) {
       if (!resultC.isCompleted) resultC.complete(false);
     }
-    return resultC.future.timeout(
-      const Duration(seconds: 45),
-      onTimeout: () => true,
-    );
+    return resultC.future.timeout(const Duration(seconds: 45), onTimeout: () => true);
   }
 
   Future<bool> _showIronSourceRewarded(AdsConfig cfg, {required VoidCallback onEarnedReward, required bool requireEarnedReward}) async {
@@ -883,36 +786,32 @@ class AdsService {
 
     ad.setListener(
       _IronSourceRewardedListener(
-        onLoaded: (info) {
+        onLoaded: (_) {
           if (!loadedC.isCompleted) loadedC.complete();
         },
-        onDisplayed: (info) {
-          shownAt = DateTime.now();
-        },
+        onDisplayed: (_) => shownAt = DateTime.now(),
         onRewarded: () {
           if (earned) return;
           earned = true;
           onEarnedReward();
         },
-        onClosed: (info) {
+        onClosed: (_) {
           final seconds = DateTime.now().difference(shownAt).inSeconds;
           final completed = requireEarnedReward ? earned : (seconds >= 4);
           if (!resultC.isCompleted) resultC.complete(completed);
         },
-        onDisplayFailed: (error, info) {
+        onDisplayFailed: (_, __) {
           if (!resultC.isCompleted) resultC.complete(false);
         },
-        onLoadFailed: (error) {
+        onLoadFailed: (_) {
           if (!failedC.isCompleted) failedC.complete();
         },
-        onClicked: (info) {},
+        onClicked: (_) {},
         onFailed: () {
           if (!failedC.isCompleted) failedC.complete();
           if (!resultC.isCompleted) resultC.complete(false);
         },
-        onDisplayedLegacy: () {
-          shownAt = DateTime.now();
-        },
+        onDisplayedLegacy: () => shownAt = DateTime.now(),
       ),
     );
 
@@ -962,19 +861,12 @@ class AdsService {
 
   Future<bool> _showWortiseInterstitial(AdsConfig cfg) async {
     await _initWortise(cfg);
-    if (!_wortiseInitialized) {
-      _log('[Wortise] showInterstitial ABORT: not initialized');
-      return false;
-    }
+    if (!_wortiseInitialized) return false;
 
     final unitId = cfg.wortise.interstitialId;
-    if (unitId.trim().isEmpty) {
-      _log('[Wortise] showInterstitial ABORT: interstitialId empty');
-      return false;
-    }
+    if (unitId.trim().isEmpty) return false;
 
-    _log('[Wortise] showInterstitial: unitId=$unitId');
-    final interstitialAd = InterstitialAd(unitId: unitId);
+    final interstitialAd = wortise_ads.InterstitialAd(unitId: unitId);
     final c = Completer<bool>();
 
     interstitialAd.onLoaded = () => interstitialAd.show();
@@ -991,19 +883,12 @@ class AdsService {
 
   Future<bool> _showWortiseRewarded(AdsConfig cfg, {required VoidCallback onEarnedReward, required bool requireEarnedReward}) async {
     await _initWortise(cfg);
-    if (!_wortiseInitialized) {
-      _log('[Wortise] showRewarded ABORT: not initialized');
-      return false;
-    }
+    if (!_wortiseInitialized) return false;
 
     final unitId = cfg.wortise.rewardedId;
-    if (unitId.trim().isEmpty) {
-      _log('[Wortise] showRewarded ABORT: rewardedId empty');
-      return false;
-    }
+    if (unitId.trim().isEmpty) return false;
 
-    _log('[Wortise] showRewarded: unitId=$unitId');
-    final rewardedAd = RewardedAd(unitId: unitId);
+    final rewardedAd = wortise_ads.RewardedAd(unitId: unitId);
     final c = Completer<bool>();
     var earned = false;
 
@@ -1050,7 +935,7 @@ class _IronSourceInterstitialListener with LevelPlayInterstitialAdListener {
   });
 
   final void Function(LevelPlayAdInfo adInfo) onLoaded;
-  final void Function(LevelPlayAdInfo adInfo) onDisplayed;
+  final void Function(LevelPlayAdInfo adInfo) on`Displayed;
   final void Function(LevelPlayAdInfo adInfo) onClosed;
   final void Function(LevelPlayAdError error, LevelPlayAdInfo adInfo) onDisplayFailed;
   final void Function(LevelPlayAdError error) onLoadFailed;
