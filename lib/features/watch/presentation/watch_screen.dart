@@ -18,6 +18,7 @@ import '../../ads/application/ads_providers.dart';
 import '../data/watch_api.dart';
 import '../../recommendations/application/reels_preload_manager.dart';
 import '../application/watch_episodes_preload_manager.dart';
+import '../../my_list/application/watch_history_controller.dart';
 import 'widgets/watch_loading_error_body.dart';
 import 'widgets/watch_no_episodes_body.dart';
 import 'widgets/watch_episode_page_item.dart';
@@ -759,7 +760,10 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
     await _ensureEpisodeLoaded(targetEpisodeNumber);
     await _startEpisodeNumber(targetEpisodeNumber);
-    
+    if (!widget.reelsPreview && mounted) {
+      ref.invalidate(watchHistoryProvider);
+    }
+
     Future.microtask(() => _ensureEpisodeLoaded(targetEpisodeNumber + 2));
     Future.microtask(() => _ensureEpisodeLoaded(targetEpisodeNumber - 2));
   }
@@ -975,6 +979,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
 
       await _ensureEpisodeLoaded(activeNum);
       await _startEpisodeNumber(activeNum);
+      if (!widget.reelsPreview && mounted) {
+        ref.invalidate(watchHistoryProvider);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e);
@@ -2048,6 +2055,9 @@ class _WatchScreenState extends ConsumerState<WatchScreen> with TickerProviderSt
               setState(() => _index = idx);
               await _ensureEpisodeLoaded(episodeNumber);
               await _startEpisodeNumber(episodeNumber);
+              if (!widget.reelsPreview && mounted) {
+                ref.invalidate(watchHistoryProvider);
+              }
             });
           },
         );
