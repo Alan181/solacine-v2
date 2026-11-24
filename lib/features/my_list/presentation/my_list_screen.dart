@@ -15,6 +15,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../bootstrap/application/bootstrap_controller.dart';
 import '../../home/domain/home_feed.dart';
 import '../application/favorites_controller.dart';
+import '../application/watch_history_controller.dart';
 
 class MyListScreen extends ConsumerStatefulWidget {
   const MyListScreen({super.key});
@@ -27,6 +28,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
   Timer? _searchDebounce;
+  var _selectedTab = 0; // 0 = History, 1 = Favorit, 2 = Suka
   var _searchOpen = false;
   var _searchQuery = '';
   var _effectiveQuery = '';
@@ -77,6 +79,8 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
   @override
   Widget build(BuildContext context) {
     final t = AppI18n.of(context);
+    final tabLabels = ['History', 'Favorit', 'Suka'];
+
     return PopScope(
       canPop: Navigator.of(context).canPop(),
       onPopInvokedWithResult: (didPop, result) {
@@ -88,7 +92,27 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
-          title: Text(t.t('nav_my_list')),
+          titleSpacing: 16,
+          title: Row(
+            children: List.generate(tabLabels.length, (index) {
+              final active = _selectedTab == index;
+              return Padding(
+                padding: const EdgeInsets.only(right: 20),
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedTab = index),
+                  behavior: HitTestBehavior.opaque,
+                  child: Text(
+                    tabLabels[index],
+                    style: TextStyle(
+                      color: active ? const Color(0xffffd54f) : Colors.white70,
+                      fontSize: active ? 18.5 : 15.5,
+                      fontWeight: active ? FontWeight.w800 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
           actions: [
             IconButton(
               onPressed: _toggleSearch,
@@ -163,17 +187,230 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
                 )
               : null,
         ),
-        body: SafeArea(child: _MyListGridView(filter: _effectiveQuery)),
-        bottomNavigationBar: const AppBottomNavBar(currentIndex: 3), // Diubah dari 2 ke 3
+        body: SafeArea(
+          child: switch (_selectedTab) {
+            0 => _WatchHistoryTab(filter: _effectiveQuery),
+            1 => _MyListGridView(
+                endpoint: '/v1/my-list',
+                filter: _effectiveQuery,
+                showFavoriteButton: true,
+                showUnlikeButton: false,
+              ),
+            _ => _MyListGridView(
+                endpoint: '/v1/my-list/likes',
+                filter: _effectiveQuery,
+                showFavoriteButton: false,
+                showUnlikeButton: true,
+              ),
+          },
+        ),
+        bottomNavigationBar: const AppBottomNavBar(currentIndex: 3),
       ),
     );
   }
 }
 
-class _MyListGridView extends ConsumerStatefulWidget {
-  const _MyListGridView({required this.filter});
+Future<bool> _toggleSeriesLike(WidgetRef ref, int seriesId) async {
+  final dio = ref.read(dioProvider);
+  final res = await dio.post>('/v1/series/$seriesId/like');
+  final json = res.data ?? const <String, dynamic>{};
+  if (json['status'] != true) {
+    throw Exception((json['message'] as String?) ?? 'Failed to toggle like');
+  }
+  final data = (json['data'] as Map<String, dynamic>?) ?? const <String, dynamic>{};
+  return data['is_liked'] == true;
+}
+
+class _WatchHistoryTab extends ConsumerWidget {
+  const _WatchHistoryTab({required this.filter});
 
   final String filter;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = AppI18n.of(context);
+    final historyAsync = ref.watch(watchHistoryProvider);
+    final baseUrl = ref.read(dioProvider).options.baseUrl;
+
+    return historyAsync.when(
+      loading: () => const Center(child: AppLoadingIndicator(radius: 13)),
+      error: (_, __) => Center(
+        child: Text(
+          t.t('no_content'),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontWeight: FontWeight.w700),
+        ),
+      ),
+      data: (items) {
+        final query = filter.trim().toLowerCase();
+        final filtered = query.isEmpty
+            ? items
+            : items.where((e) => e.title.toLowerCase().contains(query)).toList();
+
+        if (filtered.isEmpty) {
+          return RefreshIndicator(
+            onRefresh: () => ref.read(watchHistoryProvider.notifier).refresh(query: filter),
+            color: Colors.white,
+            backgroundColor: const Color(0xff111111),
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        t.t('no_content'),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.65),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        final groupOrder = ['Hari Ini', 'Kemarin', 'Sebelumnya'];
+        final map = <String, List<WatchHistoryEntry>>{};
+        for (final entry in filtered) {
+          map.putIfAbsent(entry.timeGroupLabel, () => []).add(entry);
+        }
+        final sections = [
+          for (final g in groupOrder)
+            if (map.containsKey(g)) g,
+        ];
+
+        return RefreshIndicator(
+          onRefresh: () => ref.read(watchHistoryProvider.notifier).refresh(query: filter),
+          color: Colors.white,
+          backgroundColor: const Color(0xff111111),
+          child: ListView.builder(
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
+            itemCount: sections.length,
+            itemBuilder: (context, sectionIndex) {
+              final sectionTitle = sections[sectionIndex];
+              final sectionItems = map[sectionTitle]!;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (sectionIndex > 0) const SizedBox(height: 16),
+                  Text(
+                    sectionTitle,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.68),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...sectionItems.map((entry) {
+                    final normalizedPoster = _normalizeImageUrl(entry.posterUrl, baseUrl);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: InkWell(
+                        onTap: () {
+                          context.push(
+                            '/watch/${entry.slug}?title=${Uri.encodeComponent(entry.title)}&poster=${Uri.encodeComponent(normalizedPoster)}&episode=${entry.episodeNumber}',
+                          );
+                        },
+                        onLongPress: () {
+                          ref.read(watchHistoryProvider.notifier).removeBySlug(entry.slug);
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: SizedBox(
+                                width: 92,
+                                height: 126,
+                                child: AppCachedImage(
+                                  imageUrl: normalizedPoster,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: SizedBox(
+                                height: 126,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      entry.title,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 15.5,
+                                        fontWeight: FontWeight.w700,
+                                        height: 1.25,
+                                      ),
+                                    ),
+                                    if (entry.subtitle.isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        entry.subtitle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(alpha: 0.55),
+                                          fontSize: 12.5,
+                                        ),
+                                      ),
+                                    ],
+                                    const Spacer(),
+                                    Text(
+                                      entry.episodeProgressLabel,
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.72),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MyListGridView extends ConsumerStatefulWidget {
+  const _MyListGridView({
+    required this.endpoint,
+    required this.filter,
+    required this.showFavoriteButton,
+    required this.showUnlikeButton,
+  });
+
+  final String endpoint;
+  final String filter;
+  final bool showFavoriteButton;
+  final bool showUnlikeButton;
 
   @override
   ConsumerState<_MyListGridView> createState() => _MyListGridViewState();
@@ -202,7 +439,7 @@ class _MyListGridViewState extends ConsumerState<_MyListGridView> with Automatic
   @override
   void didUpdateWidget(covariant _MyListGridView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.filter.trim() != widget.filter.trim()) {
+    if (oldWidget.filter.trim() != widget.filter.trim() || oldWidget.endpoint != widget.endpoint) {
       if (_controller.hasClients) {
         _controller.jumpTo(0);
       }
@@ -266,8 +503,8 @@ class _MyListGridViewState extends ConsumerState<_MyListGridView> with Automatic
       final lang = bootstrap.localeCode;
       final dio = ref.read(dioProvider);
 
-      final res = await dio.get<Map<String, dynamic>>(
-        '/v1/my-list',
+      final res = await dio.get>(
+        widget.endpoint,
         queryParameters: {
           'page': page,
           if (lang.trim().isNotEmpty) 'lang': lang,
@@ -277,13 +514,13 @@ class _MyListGridViewState extends ConsumerState<_MyListGridView> with Automatic
 
       final json = res.data ?? const <String, dynamic>{};
       if (json['status'] != true) {
-        throw Exception((json['message'] as String?) ?? 'Failed to load my list');
+        throw Exception((json['message'] as String?) ?? 'Failed to load list');
       }
 
       final data = (json['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
       final rawItems = data['data'];
       final list = rawItems is List ? rawItems : (rawItems is Map ? rawItems.values.toList(growable: false) : const []);
-      final parsed = list.whereType<Map>().map((e) => HomeSeries.fromJson(e.cast<String, dynamic>())).toList(growable: false);
+      final parsed = list.whereType().map((e) => HomeSeries.fromJson(e.cast<String, dynamic>())).toList(growable: false);
       final lastPage = (data['last_page'] as num?)?.toInt();
 
       if (!mounted || generation != _generation) return;
@@ -350,28 +587,27 @@ class _MyListGridViewState extends ConsumerState<_MyListGridView> with Automatic
     final t = AppI18n.of(context);
     final baseUrl = ref.read(dioProvider).options.baseUrl;
 
-    // Reactively update MyList whenever favorites change anywhere in the app
-    ref.listen<AsyncValue<Set<int>>>(favoritesIdsProvider, (previous, next) {
-      final prevSet = previous?.valueOrNull;
-      final nextSet = next.valueOrNull;
-      if (nextSet == null) return;
-      if (prevSet != null && setEquals(prevSet, nextSet)) return;
+    if (widget.showFavoriteButton) {
+      ref.listen<AsyncValue<Set<int>>>(favoritesIdsProvider, (previous, next) {
+        final prevSet = previous?.valueOrNull;
+        final nextSet = next.valueOrNull;
+        if (nextSet == null) return;
+        if (prevSet != null && setEquals(prevSet, nextSet)) return;
 
-      // 1. If any items were removed, remove them immediately from the local list
-      if (prevSet != null) {
-        final removed = prevSet.difference(nextSet);
-        if (removed.isNotEmpty && mounted) {
-          setState(() {
-            _items.removeWhere((it) => removed.contains(it.id));
-          });
+        if (prevSet != null) {
+          final removed = prevSet.difference(nextSet);
+          if (removed.isNotEmpty && mounted) {
+            setState(() {
+              _items.removeWhere((it) => removed.contains(it.id));
+            });
+          }
         }
-      }
 
-      // 2. If any items were added, silently reload page 1 in the background
-      if (prevSet == null || nextSet.difference(prevSet).isNotEmpty) {
-        _loadInitial(silent: true);
-      }
-    });
+        if (prevSet == null || nextSet.difference(prevSet).isNotEmpty) {
+          _loadInitial(silent: true);
+        }
+      });
+    }
 
     if (_loading) {
       return const Center(
@@ -456,7 +692,7 @@ class _MyListGridViewState extends ConsumerState<_MyListGridView> with Automatic
             controller: _controller,
             physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
             padding: const EdgeInsets.fromLTRB(8, 10, 8, 24),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
               childAspectRatio: 0.57,
               crossAxisSpacing: 8,
@@ -473,6 +709,8 @@ class _MyListGridViewState extends ConsumerState<_MyListGridView> with Automatic
                 isFeatured: item.isFeatured,
                 isDubbed: item.isDubbed,
                 views: item.views,
+                showFavoriteButton: widget.showFavoriteButton,
+                showUnlikeButton: widget.showUnlikeButton,
                 onRemoved: () {
                   setState(() => _items.removeWhere((e) => e.id == item.id));
                 },
@@ -505,6 +743,8 @@ class _MyListPosterTile extends ConsumerWidget {
     required this.isFeatured,
     required this.isDubbed,
     required this.views,
+    required this.showFavoriteButton,
+    required this.showUnlikeButton,
     required this.onRemoved,
   });
 
@@ -516,6 +756,8 @@ class _MyListPosterTile extends ConsumerWidget {
   final bool isFeatured;
   final bool isDubbed;
   final int views;
+  final bool showFavoriteButton;
+  final bool showUnlikeButton;
   final VoidCallback onRemoved;
 
   @override
@@ -528,6 +770,9 @@ class _MyListPosterTile extends ConsumerWidget {
       isFeatured: isFeatured,
       isDubbed: isDubbed,
       views: views,
+      showFavoriteButton: showFavoriteButton,
+      showUnlikeButton: showUnlikeButton,
+      onRemoved: onRemoved,
       onTap: () => context.push('/watch/$slug?title=${Uri.encodeComponent(title)}&poster=${Uri.encodeComponent(imageUrl)}'),
       onToggled: (isFav) {
         if (isFav == false) onRemoved();
@@ -545,6 +790,9 @@ class _PosterTile extends ConsumerWidget {
     required this.isFeatured,
     required this.isDubbed,
     required this.views,
+    required this.showFavoriteButton,
+    required this.showUnlikeButton,
+    required this.onRemoved,
     required this.onTap,
     this.onToggled,
   });
@@ -556,6 +804,9 @@ class _PosterTile extends ConsumerWidget {
   final bool isFeatured;
   final bool isDubbed;
   final int views;
+  final bool showFavoriteButton;
+  final bool showUnlikeButton;
+  final VoidCallback onRemoved;
   final VoidCallback onTap;
   final void Function(bool? isFavorited)? onToggled;
 
@@ -663,7 +914,6 @@ class _PosterTile extends ConsumerWidget {
                         ),
                       ),
                     ),
-
                   PositionedDirectional(
                     bottom: 6,
                     start: 10,
@@ -695,38 +945,73 @@ class _PosterTile extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  PositionedDirectional(
-                    bottom: 6,
-                    end: 8,
-                    child: GestureDetector(
-                      onTap: () async {
-                        try {
-                          final isNowFav = await ref.read(favoritesIdsProvider.notifier).toggle(id);
-                          onToggled?.call(isNowFav);
-                          if (!context.mounted) return;
-                        } catch (_) {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(t.t('request_failed'))),
-                          );
-                        }
-                      },
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                        ),
-                        child: Icon(
-                          isFav ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
-                          color: Colors.white.withValues(alpha: 0.95),
-                          size: 18,
+                  if (showFavoriteButton)
+                    PositionedDirectional(
+                      bottom: 6,
+                      end: 8,
+                      child: GestureDetector(
+                        onTap: () async {
+                          try {
+                            final isNowFav = await ref.read(favoritesIdsProvider.notifier).toggle(id);
+                            onToggled?.call(isNowFav);
+                            if (!context.mounted) return;
+                          } catch (_) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(t.t('request_failed'))),
+                            );
+                          }
+                        },
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                          ),
+                          child: Icon(
+                            isFav ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                            color: Colors.white.withValues(alpha: 0.95),
+                            size: 18,
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  if (showUnlikeButton)
+                    PositionedDirectional(
+                      bottom: 6,
+                      end: 8,
+                      child: GestureDetector(
+                        onTap: () async {
+                          try {
+                            final isNowLiked = await _toggleSeriesLike(ref, id);
+                            if (!isNowLiked) {
+                              onRemoved();
+                            }
+                          } catch (_) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(t.t('request_failed'))),
+                            );
+                          }
+                        },
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+                          ),
+                          child: const Icon(
+                            Icons.favorite_rounded,
+                            color: Color(0xffef233c),
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
