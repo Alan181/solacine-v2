@@ -75,7 +75,7 @@ class WatchHistoryNotifier extends AsyncNotifier<List<WatchHistoryEntry>> {
     final lang = bootstrap.localeCode;
     final dio = ref.read(dioProvider);
 
-    final res = await dio.get>(
+    final res = await dio.get(
       '/v1/my-list/history',
       queryParameters: {
         if (lang.trim().isNotEmpty) 'lang': lang,
