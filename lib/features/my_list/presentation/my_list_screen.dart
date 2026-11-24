@@ -326,13 +326,13 @@ class _WatchHistoryTab extends ConsumerWidget {
                         },
                         borderRadius: BorderRadius.circular(8),
                         child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             ClipRRect(
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(8),
                               child: SizedBox(
-                                width: 92,
-                                height: 126,
+                                width: 82,
+                                height: 112,
                                 child: AppCachedImage(
                                   imageUrl: normalizedPoster,
                                   fit: BoxFit.cover,
@@ -341,47 +341,43 @@ class _WatchHistoryTab extends ConsumerWidget {
                             ),
                             const SizedBox(width: 14),
                             Expanded(
-                              child: SizedBox(
-                                height: 126,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 2),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    entry.title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.25,
+                                    ),
+                                  ),
+                                  if (entry.subtitle.isNotEmpty) ...[
+                                    const SizedBox(height: 5),
                                     Text(
-                                      entry.title,
-                                      maxLines: 2,
+                                      entry.subtitle,
+                                      maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 15.5,
-                                        fontWeight: FontWeight.w700,
-                                        height: 1.25,
-                                      ),
-                                    ),
-                                    if (entry.subtitle.isNotEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        entry.subtitle,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(alpha: 0.55),
-                                          fontSize: 12.5,
-                                        ),
-                                      ),
-                                    ],
-                                    const Spacer(),
-                                    Text(
-                                      entry.episodeProgressLabel,
                                       style: TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.72),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white.withValues(alpha: 0.56),
+                                        fontSize: 12.5,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
                                   ],
-                                ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    entry.episodeProgressLabel,
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.75),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
