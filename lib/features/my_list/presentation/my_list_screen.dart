@@ -212,7 +212,7 @@ class _MyListScreenState extends ConsumerState<MyListScreen> {
 
 Future<bool> _toggleSeriesLike(WidgetRef ref, int seriesId) async {
   final dio = ref.read(dioProvider);
-  final res = await dio.post>('/v1/series/$seriesId/like');
+  final res = await dio.post('/v1/series/$seriesId/like');
   final json = res.data ?? const <String, dynamic>{};
   if (json['status'] != true) {
     throw Exception((json['message'] as String?) ?? 'Failed to toggle like');
@@ -503,7 +503,7 @@ class _MyListGridViewState extends ConsumerState<_MyListGridView> with Automatic
       final lang = bootstrap.localeCode;
       final dio = ref.read(dioProvider);
 
-      final res = await dio.get>(
+      final res = await dio.get(
         widget.endpoint,
         queryParameters: {
           'page': page,
